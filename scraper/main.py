@@ -178,15 +178,16 @@ def scrape_itri():
 
     headers = HEADERS.copy()
     headers.update({
-        "Accept": "application/json",
-        "Content-Type": "application/json",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Content-Type": "application/json; charset=UTF-8",
         "RemoteUrl": "https://abpssapi.itri.org.tw/api/ABPSSAPI/GetpublishDocList",
         "Origin": "https://vendor.itri.org.tw",
         "Referer": "https://vendor.itri.org.tw/broadBqry2.aspx",
+        "X-Requested-With": "XMLHttpRequest"
     })
 
     payload = {
-        "BidDocStatus": "",
+        "BidDocStatus": "P", # P = 公告中
         "IseBid": "",
         "currentPage": 1,
         "PageSize": 100
