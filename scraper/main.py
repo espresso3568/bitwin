@@ -330,7 +330,12 @@ def scrape_iii():
 # ============================================================================
 
 def scrape_sinica():
-    """抓取中研院標案（HTML 表格，pandas 自動解析）"""
+    """
+    抓取中研院標案（HTML 表格，pandas 自動解析）
+
+    網頁有多個 table，Table 0 是搜尋表單，Table 1 才是標案資料。
+    Table 1 欄位：標號 | 採購案名稱 | 預算金額 | 公告日期 | 截止日期 | (空欄)
+    """
     print("[GET] 抓取中研院...")
 
     url = f'https://srp.sinica.edu.tw/InviteBids?searchPubTime={TODAY_CN}'
@@ -341,12 +346,40 @@ def scrape_sinica():
 
         dfs = pd.read_html(StringIO(resp.text))
 
-        if dfs and len(dfs) > 0:
-            df = dfs[0]
-            df['來源'] = '中研院'
-            df['查詢日期'] = TODAY_CN
-            print(f"   [OK] 中研院：{len(df)} 筆")
-            return df
+        # 找到有標案資料的表格（跳過搜尋表單等）
+        # 資料表格至少有 5 欄且含有類似「標號」「採購」等欄位名
+        bid_df = None
+        for df in dfs:
+            cols = [str(c) for c in df.columns]
+            col_text = ''.join(cols)
+            if len(df.columns) >= 5 and ('標' in col_text or '採購' in col_text):
+                bid_df = df
+                break
+
+        if bid_df is not None and not bid_df.empty:
+            # 移除全空欄位（如 Unnamed 欄位）
+            bid_df = bid_df.dropna(axis=1, how='all')
+            # 統一欄位名稱
+            col_map = {}
+            for c in bid_df.columns:
+                cs = str(c)
+                if '標號' in cs or '案號' in cs:
+                    col_map[c] = '案號'
+                elif '採購' in cs and '名' in cs:
+                    col_map[c] = '標題'
+                elif '預算' in cs or '金額' in cs:
+                    col_map[c] = '預算金額'
+                elif '公告' in cs or '公佈' in cs:
+                    col_map[c] = '公告日'
+                elif '截止' in cs or '截標' in cs:
+                    col_map[c] = '截止日'
+            if col_map:
+                bid_df = bid_df.rename(columns=col_map)
+
+            bid_df['來源'] = '中研院'
+            bid_df['查詢日期'] = TODAY_CN
+            print(f"   [OK] 中研院：{len(bid_df)} 筆")
+            return bid_df
         else:
             print("   [FAIL] 中研院：無資料（當天無新公告）")
             return pd.DataFrame()
