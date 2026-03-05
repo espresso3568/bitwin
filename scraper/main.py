@@ -225,10 +225,15 @@ def scrape_itri():
             else:
                 budget = ''
 
+            # 工研院詳情頁網址
+            case_no = bid_info.get('CNo', '')
+            link_href = f"https://vendor.itri.org.tw/broadBdet.aspx?CNo={case_no}" if case_no else ''
+
             bids.append({
                 '來源': '工研院',
-                '案號': bid_info.get('CNo', ''),
+                '案號': case_no,
                 '標題': bid_info.get('CName', ''),
+                '標題連結': link_href,
                 '預算金額': budget,
                 '採購方式': bid_info.get('BidMethod', ''),
                 '公告日': row.get('LatestPublishdt', ''),
@@ -300,22 +305,23 @@ def scrape_iii():
                     detail_resp = requests.get(link_href, headers=HEADERS, timeout=15)
                     if detail_resp.ok:
                         detail_soup = BeautifulSoup(detail_resp.text, 'html.parser')
-                        # 搜尋包含「預算」或「金額」的內容
-                        for tag in detail_soup.find_all(['span', 'td', 'div']):
-                            text = tag.get_text().strip()
-                            if '預算金額' in text or '採購預算' in text:
-                                # 嘗試提取金額
-                                match = re.search(r'[:：]\s*([\d,]+)', text)
-                                if match:
-                                    budget = match.group(1).replace(',', '')
-                                    break
-                                # 檢查下一個節點
-                                sib = tag.find_next_sibling()
-                                if sib:
-                                    sib_text = sib.get_text().strip().replace(',', '')
-                                    if sib_text.replace('.', '').isdigit():
-                                        budget = sib_text
-                                        break
+                        # 取得全頁文字並正規化
+                        full_text = detail_soup.get_text(separator=' ', strip=True)
+                        
+                        # 使用更通用的 regex 找預算金額 (支援 1,234,567 元)
+                        # 搜尋模式：預算金額 [符號] [數字]
+                        m = re.search(r'(?:預算金額|採購預算)\s*[:：\s]*\s*([\d,]+)', full_text)
+                        if m:
+                            budget = m.group(1).replace(',', '')
+                        else:
+                            # 備案：搜尋表格欄位
+                            for cell in detail_soup.find_all(['td', 'th']):
+                                if '預算金額' in cell.text:
+                                    nxt = cell.find_next_sibling(['td', 'th'])
+                                    if nxt:
+                                        val = nxt.get_text().strip().replace(',', '')
+                                        dig = re.search(r'(\d+)', val)
+                                        if dig: budget = dig.group(1); break
                 except Exception as e:
                     print(f"      [WARN] 資策會詳情頁抓取失敗 ({case_no}): {e}")
 
