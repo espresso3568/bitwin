@@ -948,6 +948,7 @@
             border-radius: var(--radius-sm);
             font-size: 13px;
             line-height: 1.6;
+            transition: all 0.3s ease;
         }
 
         .status-alert.show { display: block; }
@@ -964,20 +965,52 @@
             color: var(--accent-red);
         }
 
+        .status-alert-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+
         .status-alert-title {
             font-weight: 600;
             font-size: 14px;
-            margin-bottom: 6px;
+            margin-bottom: 0;
+        }
+
+        .status-alert-toggle {
+            font-size: 18px;
+            transition: transform 0.2s ease;
+            line-height: 1;
+        }
+
+        /* Collapsed State */
+        .status-alert.collapsed .status-alert-body {
+            display: none;
+        }
+        .status-alert.collapsed .status-alert-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .status-alert-body {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        [data-theme="light"] .status-alert-body {
+            border-top-color: rgba(0, 0, 0, 0.05);
         }
 
         .status-alert-detail {
             font-size: 12px;
             opacity: 0.85;
+            margin-bottom: 8px;
         }
 
         .status-alert-retry {
             font-size: 11px;
-            margin-top: 6px;
             opacity: 0.6;
             font-family: 'JetBrains Mono', monospace;
         }
@@ -1127,12 +1160,17 @@
         </div>
 
         <!-- Status Alert (shown when sources have issues) -->
-        <div class="status-alert" id="statusAlert">
-            <div class="status-alert-title" id="statusAlertTitle"></div>
-            <div class="status-alert-detail" id="statusAlertDetail"></div>
-            <div class="status-alert-retry" id="statusAlertRetry"></div>
-            <button class="log-toggle" id="logToggle">View Scraper Logs</button>
-            <div class="log-panel" id="logPanel"></div>
+        <div class="status-alert collapsed" id="statusAlert">
+            <div class="status-alert-header" id="statusAlertHeader">
+                <div class="status-alert-title" id="statusAlertTitle"></div>
+                <div class="status-alert-toggle">&#9662;</div>
+            </div>
+            <div class="status-alert-body">
+                <div class="status-alert-detail" id="statusAlertDetail"></div>
+                <div class="status-alert-retry" id="statusAlertRetry"></div>
+                <button class="log-toggle" id="logToggle">View Scraper Logs</button>
+                <div class="log-panel" id="logPanel"></div>
+            </div>
         </div>
 
         <!-- Toolbar -->
@@ -1647,6 +1685,11 @@
             var isOpen = panel.classList.contains('show');
             panel.classList.toggle('show');
             this.textContent = isOpen ? 'View Scraper Logs' : 'Hide Logs';
+        });
+
+        // Toggle Status Alert collapse
+        document.getElementById('statusAlertHeader').addEventListener('click', function() {
+            document.getElementById('statusAlert').classList.toggle('collapsed');
         });
     </script>
 </body>
