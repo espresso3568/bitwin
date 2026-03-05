@@ -10,7 +10,7 @@
 
     <style>
         /* ================================================================
-           CSS Variables
+           CSS Variables - Dark Theme (default)
            ================================================================ */
         :root {
             --bg-primary: #0a0e1a;
@@ -36,6 +36,42 @@
             --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 16px;
+            --thead-bg: rgba(17, 24, 39, 0.95);
+            --row-hover: rgba(99, 115, 255, 0.04);
+            --row-border: rgba(99, 115, 255, 0.06);
+            --footer-bg: rgba(17, 24, 39, 0.5);
+            --grid-line: rgba(99, 115, 255, 0.03);
+            --scrollbar-thumb: var(--border-color);
+        }
+
+        /* ================================================================
+           Light Theme
+           ================================================================ */
+        [data-theme="light"] {
+            --bg-primary: #f0f2f5;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8f9fb;
+            --bg-glass: rgba(255, 255, 255, 0.85);
+            --border-color: rgba(0, 0, 0, 0.08);
+            --border-glow: rgba(99, 115, 255, 0.3);
+            --text-primary: #1a1a2e;
+            --text-secondary: #5a6178;
+            --text-muted: #9ca3af;
+            --shadow-glow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --thead-bg: rgba(255, 255, 255, 0.95);
+            --row-hover: rgba(99, 115, 255, 0.03);
+            --row-border: rgba(0, 0, 0, 0.04);
+            --footer-bg: rgba(248, 249, 251, 0.9);
+            --grid-line: rgba(0, 0, 0, 0.02);
+            --scrollbar-thumb: rgba(0, 0, 0, 0.12);
+        }
+
+        [data-theme="light"] .bg-glow { opacity: 0.04; }
+        [data-theme="light"] .stat-card.total .stat-value {
+            -webkit-text-fill-color: unset;
+            background: none;
+            color: var(--accent-blue);
         }
 
         /* ================================================================
@@ -54,6 +90,7 @@
             min-height: 100vh;
             overflow-x: hidden;
             line-height: 1.6;
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
         /* ================================================================
@@ -65,8 +102,8 @@
             width: 100%; height: 100%;
             z-index: 0;
             background-image:
-                linear-gradient(rgba(99, 115, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(99, 115, 255, 0.03) 1px, transparent 1px);
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
             background-size: 60px 60px;
             pointer-events: none;
         }
@@ -136,6 +173,7 @@
             justify-content: center;
             font-size: 22px;
             font-weight: 700;
+            color: #fff;
             box-shadow: 0 4px 20px rgba(99, 115, 255, 0.3);
         }
 
@@ -161,6 +199,12 @@
             text-transform: uppercase;
         }
 
+        .top-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
         .status-indicator {
             display: flex;
             align-items: center;
@@ -180,6 +224,52 @@
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
+        }
+
+        /* ================================================================
+           Theme Toggle
+           ================================================================ */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .theme-toggle-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .theme-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: var(--border-color);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .theme-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        [data-theme="light"] .theme-switch::after {
+            transform: translateX(20px);
+            background: var(--accent-orange);
         }
 
         /* ================================================================
@@ -536,7 +626,7 @@
         }
 
         thead tr {
-            background: rgba(17, 24, 39, 0.95);
+            background: var(--thead-bg);
             backdrop-filter: blur(10px);
         }
 
@@ -556,7 +646,7 @@
             padding: 16px 20px;
             font-size: 13px;
             color: var(--text-primary);
-            border-bottom: 1px solid rgba(99, 115, 255, 0.06);
+            border-bottom: 1px solid var(--row-border);
             vertical-align: middle;
         }
 
@@ -565,7 +655,7 @@
         }
 
         tbody tr:hover {
-            background: rgba(99, 115, 255, 0.04);
+            background: var(--row-hover);
         }
 
         /* Source Badges */
@@ -631,6 +721,20 @@
             white-space: nowrap;
         }
 
+        /* Budget Text */
+        .budget-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent-green);
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        [data-theme="light"] .budget-text {
+            color: #00897b; /* Darker green for light theme contrast */
+        }
+
+        /* Status Badges */
         .status-badge {
             display: inline-block;
             padding: 4px 10px;
@@ -645,10 +749,22 @@
             border: 1px solid rgba(0, 230, 118, 0.2);
         }
 
+        [data-theme="light"] .status-active {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-color: #c8e6c9;
+        }
+
         .status-closed {
             background: rgba(255, 82, 82, 0.1);
             color: var(--accent-red);
             border: 1px solid rgba(255, 82, 82, 0.2);
+        }
+
+        [data-theme="light"] .status-closed {
+            background: #ffebee;
+            color: #c62828;
+            border-color: #ffcdd2;
         }
 
         .status-default {
@@ -713,7 +829,7 @@
             border-top: 1px solid var(--border-color);
             font-size: 12px;
             color: var(--text-muted);
-            background: rgba(17, 24, 39, 0.5);
+            background: var(--footer-bg);
         }
 
         .footer-time {
@@ -771,6 +887,8 @@
                 align-items: flex-start;
                 gap: 12px;
             }
+
+            .top-right { width: 100%; justify-content: space-between; }
 
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -949,7 +1067,7 @@
            ================================================================ */
         .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .table-scroll::-webkit-scrollbar-track { background: transparent; }
-        .table-scroll::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        .table-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
         .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-glow); }
     </style>
 </head>
@@ -966,9 +1084,15 @@
                 <div class="logo-text">BidWatch</div>
                 <div class="logo-badge">Live</div>
             </div>
-            <div class="status-indicator">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Connecting...</span>
+            <div class="top-right">
+                <div class="theme-toggle" id="themeToggle" title="Toggle light/dark theme">
+                    <span class="theme-toggle-label" id="themeLabel">Dark</span>
+                    <div class="theme-switch"></div>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
             </div>
         </div>
 
@@ -1072,8 +1196,9 @@
                                 <th style="width:120px;">Source</th>
                                 <th style="width:160px;">Case ID</th>
                                 <th style="min-width:300px;">Title</th>
+                                <th style="width:130px;">Budget</th>
                                 <th style="width:120px;">Published</th>
-                                <th style="width:120px;">Deadline</th>
+                                <th style="width:140px;">Deadline</th>
                                 <th style="width:100px;">Status</th>
                             </tr>
                         </thead>
@@ -1081,7 +1206,7 @@
                     </table>
                 </div>
                 <div class="footer">
-                    <div>BidWatch v1.2 | Auto-refreshed daily 08:00 TST | 30-day history</div>
+                    <div>BidWatch v1.5 | Auto-refreshed hourly | 30-day history</div>
                     <div class="footer-time" id="updateTime">--</div>
                 </div>
             </div>
@@ -1094,41 +1219,107 @@
         // ================================================================
         function esc(str) {
             if (str === null || str === undefined) return '';
-            const el = document.createElement('div');
+            var el = document.createElement('div');
             el.textContent = String(str);
             return el.innerHTML;
         }
 
+        /**
+         * 將西元日期轉換為民國日期
+         * 支援格式：
+         *   "2026-03-05"          → "115/03/05"
+         *   "2026-03-10 16:00"    → "115/03/10 16:00"
+         *   "115/03/05"           → "115/03/05" (已是民國，不轉換)
+         *   ""                    → "-"
+         */
+        function toROCDate(dateStr) {
+            if (!dateStr || dateStr === '-' || dateStr === '') return '-';
+            dateStr = String(dateStr).trim();
+
+            // 已是民國格式（年份 < 200）
+            if (/^\d{2,3}\//.test(dateStr)) return dateStr;
+
+            // 西元格式 YYYY-MM-DD 或 YYYY-MM-DD HH:MM
+            var m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})(.*)/);
+            if (m) {
+                var rocYear = parseInt(m[1]) - 1911;
+                return rocYear + '/' + m[2] + '/' + m[3] + (m[4] || '');
+            }
+
+            // 西元格式 YYYY/MM/DD
+            var m2 = dateStr.match(/^(\d{4})\/(\d{2})\/(\d{2})(.*)/);
+            if (m2) {
+                var rocYear2 = parseInt(m2[1]) - 1911;
+                return rocYear2 + '/' + m2[2] + '/' + m2[3] + (m2[4] || '');
+            }
+
+            return dateStr;
+        }
+
+        /**
+         * 格式化預算金額
+         * 數字 → 加千分位逗號
+         * 空值 → "-"
+         */
+        function formatBudget(val) {
+            if (val === '' || val === null || val === undefined) return '-';
+            var num = parseFloat(val);
+            if (isNaN(num)) return String(val);
+            return num.toLocaleString('zh-TW');
+        }
+
+        // ================================================================
+        // Theme
+        // ================================================================
+        function getStoredTheme() {
+            try { return localStorage.getItem('bidwatch-theme') || 'dark'; }
+            catch(e) { return 'dark'; }
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            document.getElementById('themeLabel').textContent = theme === 'dark' ? 'Dark' : 'Light';
+            try { localStorage.setItem('bidwatch-theme', theme); } catch(e) {}
+        }
+
+        // Init theme
+        setTheme(getStoredTheme());
+
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        });
+
         // ================================================================
         // State
         // ================================================================
-        let allData = [];
-        let availableDates = [];  // ['2026-03-05', '2026-03-04', ...]
-        let availableDateSet = new Set();
-        let selectedDate = null;  // null = latest
-        let calYear = 0;
-        let calMonth = 0; // 0-indexed
+        var allData = [];
+        var availableDates = [];
+        var availableDateSet = new Set();
+        var selectedDate = null;
+        var calYear = 0;
+        var calMonth = 0;
 
         // ================================================================
         // Init: Load dates manifest, data, and status
         // ================================================================
         Promise.all([
-            fetch('dates.json').then(r => r.ok ? r.json() : { dates: [] }).catch(() => ({ dates: [] })),
-            fetch('data.json').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
-            fetch('status.json').then(r => r.ok ? r.json() : null).catch(() => null)
+            fetch('dates.json').then(function(r) { return r.ok ? r.json() : { dates: [] }; }).catch(function() { return { dates: [] }; }),
+            fetch('data.json').then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+            fetch('status.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; })
         ])
-        .then(([datesData, latestData, statusData]) => {
+        .then(function(results) {
+            var datesData = results[0], latestData = results[1], statusData = results[2];
+
             availableDates = datesData.dates || [];
             availableDateSet = new Set(availableDates);
 
-            // Init calendar to current month
             var now = new Date();
             calYear = now.getFullYear();
             calMonth = now.getMonth();
 
             applyData(latestData);
 
-            // Show status alerts if any source failed
             if (statusData) {
                 renderStatus(statusData);
             }
@@ -1136,7 +1327,7 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('tableWrapper').style.display = 'block';
         })
-        .catch(err => {
+        .catch(function(err) {
             document.getElementById('loading').innerHTML =
                 '<div class="error-state"><div style="font-size:24px;margin-bottom:12px;">Connection Error</div>' +
                 '<div>' + esc(err.message) + '</div></div>';
@@ -1166,7 +1357,6 @@
         // ================================================================
         function loadDate(dateStr) {
             if (!dateStr) {
-                // Load latest
                 selectedDate = null;
                 document.getElementById('dateBtnText').textContent = 'Latest';
                 document.getElementById('dateBanner').classList.remove('show');
@@ -1174,8 +1364,8 @@
                 document.getElementById('tableWrapper').style.display = 'none';
 
                 fetch('data.json')
-                    .then(r => r.json())
-                    .then(data => {
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
                         applyData(data);
                         document.getElementById('loading').style.display = 'none';
                         document.getElementById('tableWrapper').style.display = 'block';
@@ -1193,28 +1383,26 @@
             document.getElementById('tableWrapper').style.display = 'none';
 
             fetch('data_' + fileDate + '.json')
-                .then(r => {
+                .then(function(r) {
                     if (!r.ok) throw new Error('No data for ' + dateStr);
                     return r.json();
                 })
-                .then(data => {
+                .then(function(data) {
                     applyData(data);
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('tableWrapper').style.display = 'block';
                 })
-                .catch(err => {
+                .catch(function(err) {
                     document.getElementById('loading').innerHTML =
                         '<div class="error-state"><div style="margin-bottom:8px;">No data available</div>' +
                         '<div style="font-size:12px;color:var(--text-muted);">' + esc(dateStr) + '</div></div>';
                 });
 
-            // Close calendar
             document.getElementById('calendarDropdown').classList.remove('show');
             document.getElementById('dateBtn').classList.remove('active');
             renderCalendar();
         }
 
-        // Banner close → back to latest
         document.getElementById('bannerClose').addEventListener('click', function() {
             loadDate(null);
             renderCalendar();
@@ -1240,12 +1428,10 @@
 
             var html = '';
 
-            // Empty cells before first day
             for (var i = 0; i < firstDay; i++) {
                 html += '<div class="cal-day empty"></div>';
             }
 
-            // Day cells
             for (var d = 1; d <= daysInMonth; d++) {
                 var dateStr = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
                 var classes = ['cal-day'];
@@ -1264,7 +1450,6 @@
 
             daysEl.innerHTML = html;
 
-            // Bind click on has-data days
             daysEl.querySelectorAll('.cal-day.has-data').forEach(function(el) {
                 el.addEventListener('click', function() {
                     loadDate(this.getAttribute('data-date'));
@@ -1272,7 +1457,6 @@
             });
         }
 
-        // Calendar toggle
         document.getElementById('dateBtn').addEventListener('click', function(e) {
             e.stopPropagation();
             var dd = document.getElementById('calendarDropdown');
@@ -1282,7 +1466,6 @@
             if (!isOpen) renderCalendar();
         });
 
-        // Calendar nav
         document.getElementById('calPrev').addEventListener('click', function(e) {
             e.stopPropagation();
             calMonth--;
@@ -1297,7 +1480,6 @@
             renderCalendar();
         });
 
-        // Close calendar on outside click
         document.addEventListener('click', function(e) {
             var dd = document.getElementById('calendarDropdown');
             var btn = document.getElementById('dateBtn');
@@ -1318,7 +1500,7 @@
 
             if (data.length === 0) {
                 tbody.innerHTML =
-                    '<tr><td colspan="6"><div class="empty-state">' +
+                    '<tr><td colspan="7"><div class="empty-state">' +
                     '<div class="empty-state-icon">[ ]</div>' +
                     '<div>No matching records found</div></div></td></tr>';
                 return;
@@ -1338,10 +1520,12 @@
                     title = titleText;
                 }
 
-                var pubDate = esc(row['公告日'] || row['公佈日'] || '-');
-                var endDate = esc(row['截止日'] || row['投標日'] || '-');
+                var pubDate = toROCDate(row['公告日'] || row['公佈日'] || '');
+                var endDate = toROCDate(row['截止日'] || row['投標日'] || '');
 
-                var rawStatus = row['狀態'] || '-';
+                var budget = formatBudget(row['預算金額']);
+
+                var rawStatus = row['狀態'] || row['招標狀態'] || '-';
                 var statusClass = 'status-default';
                 var statusLabel = esc(rawStatus);
                 if (rawStatus === 'P' || rawStatus === '公告中') {
@@ -1356,8 +1540,9 @@
                     '<td><span class="source-badge ' + badgeClass + '">' + esc(source) + '</span></td>' +
                     '<td><span class="case-no">' + esc(row['案號'] || '-') + '</span></td>' +
                     '<td>' + title + '</td>' +
-                    '<td><span class="date-text">' + pubDate + '</span></td>' +
-                    '<td><span class="date-text">' + endDate + '</span></td>' +
+                    '<td><span class="budget-text">' + esc(budget) + '</span></td>' +
+                    '<td><span class="date-text">' + esc(pubDate) + '</span></td>' +
+                    '<td><span class="date-text">' + esc(endDate) + '</span></td>' +
                     '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
                     '</tr>';
             }).join('');
@@ -1394,7 +1579,6 @@
             var failedSources = [];
             var failDetails = [];
 
-            // Check each source
             var sourceMap = {
                 '工研院': { cardId: 'itriCount', label: 'ITRI' },
                 '資策會': { cardId: 'iiiCount', label: 'III' },
@@ -1405,7 +1589,6 @@
                 var src = sources[srcName];
                 if (!src) continue;
 
-                // Add status indicator to stat card
                 var cardEl = document.getElementById(sourceMap[srcName].cardId);
                 if (cardEl && cardEl.parentElement) {
                     var existingBadge = cardEl.parentElement.querySelector('.stat-status');
@@ -1429,7 +1612,6 @@
                 }
             }
 
-            // Show alert if there are failures
             if (failedSources.length > 0) {
                 var alertEl = document.getElementById('statusAlert');
                 var titleEl = document.getElementById('statusAlertTitle');
@@ -1447,15 +1629,9 @@
                 detailEl.innerHTML = failDetails.map(function(d) { return esc(d); }).join('<br>');
 
                 var attempt = status.attempt || 0;
-                var maxAttempts = 5;
-                if (attempt < maxAttempts) {
-                    retryEl.textContent = 'Attempt ' + attempt + '/' + maxAttempts + ' - next retry in ~1 hour';
-                } else {
-                    retryEl.textContent = 'Attempt ' + attempt + '/' + maxAttempts + ' - max retries reached for today';
-                }
+                retryEl.textContent = 'Attempt ' + attempt + ' - auto-retry every hour';
             }
 
-            // Render logs
             if (status.logs && status.logs.length > 0) {
                 var logHtml = status.logs.map(function(entry) {
                     return '<div class="log-entry"><span class="log-time">[' + esc(entry.time) + ']</span>' + esc(entry.msg) + '</div>';
@@ -1466,7 +1642,6 @@
             }
         }
 
-        // Log toggle
         document.getElementById('logToggle').addEventListener('click', function() {
             var panel = document.getElementById('logPanel');
             var isOpen = panel.classList.contains('show');

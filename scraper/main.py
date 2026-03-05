@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-三站標案抓取器 v1.3
+三站標案抓取器 v1.4
 ===================
 
 功能：
   - 抓取工研院、資策會、中研院標案資訊
+  - 中研院抓取近 3 天資料（避免漏看）
+  - 含預算金額欄位（如有提供）
+  - 每小時自動執行，失敗站點自動重試
   - 輸出 CSV（含歷史）和 JSON（給前端）
   - 自動清理超過 30 天的歷史檔案
   - 記錄爬取狀態（status.json）供前端顯示
-  - 智慧重試：只重新抓取失敗的站點，每日最多 5 次
-  - 自動化執行（GitHub Actions）
 
 作者：AI Assistant
 日期：2026/03/05
@@ -48,11 +49,11 @@ TIMEOUT = 30
 MAX_RETRIES = 2
 RETRY_DELAY = 3
 KEEP_DAYS = 30
-MAX_DAILY_ATTEMPTS = 5
 
-# 站點定義
+# 中研院回溯天數
+SINICA_LOOKBACK_DAYS = 3
+
 SOURCES = ['工研院', '資策會', '中研院']
-
 STATUS_FILE = 'docs/status.json'
 
 
@@ -61,23 +62,7 @@ STATUS_FILE = 'docs/status.json'
 # ============================================================================
 
 def load_status():
-    """
-    讀取今日的狀態檔。
-    回傳格式：
-    {
-        "date": "2026-03-05",
-        "attempt": 2,
-        "sources": {
-            "工研院": {"status": "ok", "count": 50, "time": "08:01:23", "error": ""},
-            "資策會": {"status": "ok", "count": 10, "time": "08:01:25", "error": ""},
-            "中研院": {"status": "fail", "count": 0, "time": "08:01:30", "error": "連線超時"}
-        },
-        "logs": [
-            {"time": "08:00:05", "msg": "開始第 1 次執行"},
-            ...
-        ]
-    }
-    """
+    """讀取今日的狀態檔"""
     if os.path.exists(STATUS_FILE):
         try:
             with open(STATUS_FILE, 'r', encoding='utf-8') as f:
@@ -87,7 +72,6 @@ def load_status():
         except (json.JSONDecodeError, KeyError):
             pass
 
-    # 今天第一次執行，初始化
     return {
         'date': TODAY_CN,
         'attempt': 0,
@@ -118,7 +102,7 @@ def add_log(status, msg):
 # ============================================================================
 
 def retry(func, retries=MAX_RETRIES, delay=RETRY_DELAY):
-    """重試包裝器：失敗時自動重試指定次數。"""
+    """重試包裝器"""
     for attempt in range(retries + 1):
         result = func()
         if not result.empty:
@@ -234,16 +218,22 @@ def scrape_itri():
             else:
                 undertaker_name = ''
 
+            # 嘗試取得預算金額
+            budget = bid_info.get('Budget', bid_info.get('BudgetAmount', ''))
+            if budget and budget != 0:
+                budget = str(budget)
+            else:
+                budget = ''
+
             bids.append({
                 '來源': '工研院',
                 '案號': bid_info.get('CNo', ''),
                 '標題': bid_info.get('CName', ''),
+                '預算金額': budget,
                 '採購方式': bid_info.get('BidMethod', ''),
-                '是否電子標': bid_info.get('IseBid', ''),
                 '公告日': row.get('LatestPublishdt', ''),
                 '截止日': end_date_str,
                 '狀態': row.get('BidDocStatus', ''),
-                '承辦人': undertaker_name,
             })
 
         df = pd.DataFrame(bids)
@@ -300,14 +290,14 @@ def scrape_iii():
             bids.append({
                 '來源': '資策會',
                 '案號': cols[0].text.strip(),
-                '招標狀態': cols[1].text.strip(),
                 '標題': cols[2].text.strip(),
                 '標題連結': link_href,
+                '預算金額': '',
                 '採購類型': cols[3].text.strip(),
                 '公佈日': cols[4].text.strip(),
                 '投標日': cols[5].text.strip(),
                 '開標日': cols[6].text.strip(),
-                '更正日期': cols[7].text.strip(),
+                '狀態': cols[1].text.strip(),
             })
 
         df = pd.DataFrame(bids)
@@ -326,72 +316,118 @@ def scrape_iii():
 
 
 # ============================================================================
-# 中研院爬蟲
+# 中研院爬蟲（近 3 天）
 # ============================================================================
 
 def scrape_sinica():
     """
-    抓取中研院標案（HTML 表格，pandas 自動解析）
+    抓取中研院標案（近 SINICA_LOOKBACK_DAYS 天）
 
-    網頁有多個 table，Table 0 是搜尋表單，Table 1 才是標案資料。
-    Table 1 欄位：標號 | 採購案名稱 | 預算金額 | 公告日期 | 截止日期 | (空欄)
+    使用 BeautifulSoup 直接解析表格，以同時取得超連結。
+    資料表格欄位：標號 | 採購案名稱 | 預算金額 | 公告日期 | 截止日期
     """
-    print("[GET] 抓取中研院...")
+    print(f"[GET] 抓取中研院（近 {SINICA_LOOKBACK_DAYS} 天）...")
 
-    url = f'https://srp.sinica.edu.tw/InviteBids?searchPubTime={TODAY_CN}'
+    all_bids = []
 
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        resp.raise_for_status()
+    for i in range(SINICA_LOOKBACK_DAYS):
+        date = (NOW_TW - timedelta(days=i)).strftime('%Y-%m-%d')
+        url = f'https://srp.sinica.edu.tw/InviteBids?searchPubTime={date}'
 
-        dfs = pd.read_html(StringIO(resp.text))
+        try:
+            resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            resp.raise_for_status()
 
-        # 找到有標案資料的表格（跳過搜尋表單等）
-        # 資料表格至少有 5 欄且含有類似「標號」「採購」等欄位名
-        bid_df = None
-        for df in dfs:
-            cols = [str(c) for c in df.columns]
-            col_text = ''.join(cols)
-            if len(df.columns) >= 5 and ('標' in col_text or '採購' in col_text):
-                bid_df = df
-                break
+            soup = BeautifulSoup(resp.text, 'html.parser')
 
-        if bid_df is not None and not bid_df.empty:
-            # 移除全空欄位（如 Unnamed 欄位）
-            bid_df = bid_df.dropna(axis=1, how='all')
-            # 統一欄位名稱
-            col_map = {}
-            for c in bid_df.columns:
-                cs = str(c)
-                if '標號' in cs or '案號' in cs:
-                    col_map[c] = '案號'
-                elif '採購' in cs and '名' in cs:
-                    col_map[c] = '標題'
-                elif '預算' in cs or '金額' in cs:
-                    col_map[c] = '預算金額'
-                elif '公告' in cs or '公佈' in cs:
-                    col_map[c] = '公告日'
-                elif '截止' in cs or '截標' in cs:
-                    col_map[c] = '截止日'
-            if col_map:
-                bid_df = bid_df.rename(columns=col_map)
+            # 找到資料表格（跳過搜尋表單等非資料表格）
+            data_table = None
+            for table in soup.find_all('table'):
+                headers = table.find_all('th')
+                if len(headers) >= 4:
+                    header_text = ''.join(th.text for th in headers)
+                    if '標' in header_text or '採購' in header_text:
+                        data_table = table
+                        break
 
-            bid_df['來源'] = '中研院'
-            bid_df['查詢日期'] = TODAY_CN
-            print(f"   [OK] 中研院：{len(bid_df)} 筆")
-            return bid_df
-        else:
-            print("   [FAIL] 中研院：無資料（當天無新公告）")
-            return pd.DataFrame()
+            if not data_table:
+                print(f"   [--] 中研院 {date}：無資料")
+                continue
 
-    except requests.exceptions.Timeout:
-        print(f"   [FAIL] 中研院：連線超時（>{TIMEOUT}秒）")
-        return pd.DataFrame()
-    except requests.exceptions.RequestException as e:
-        print(f"   [FAIL] 中研院：網路錯誤 - {e}")
-        return pd.DataFrame()
-    except ValueError as e:
-        print(f"   [FAIL] 中研院：表格解析錯誤 - {e}")
+            # 解析表頭
+            th_cells = data_table.find_all('th')
+            col_names = [th.text.strip() for th in th_cells]
+
+            # 解析資料列
+            rows = data_table.find_all('tr')[1:]  # 跳過表頭
+            bids = []
+            for row in rows:
+                cols = row.find_all('td')
+                if len(cols) < 4:
+                    continue
+
+                # 建立原始欄位對應
+                raw = {}
+                for idx, col in enumerate(cols):
+                    if idx < len(col_names):
+                        raw[col_names[idx]] = col.text.strip()
+
+                # 找超連結（中研院標題通常含有連結）
+                link_href = ''
+                for col in cols:
+                    a_tag = col.find('a', href=True)
+                    if a_tag:
+                        href = a_tag['href']
+                        if href and not href.startswith('http'):
+                            href = f"https://srp.sinica.edu.tw{href}"
+                        link_href = href
+                        break
+
+                # 欄位映射
+                bid = {'來源': '中研院', '標題連結': link_href, '查詢日期': date}
+                for key, val in raw.items():
+                    if '標號' in key or '案號' in key:
+                        bid['案號'] = val
+                    elif '採購' in key and '名' in key:
+                        bid['標題'] = val
+                    elif '預算' in key or '金額' in key:
+                        # 嘗試轉數字
+                        try:
+                            clean_val = val.replace(',', '').replace('$', '').strip()
+                            bid['預算金額'] = float(clean_val) if clean_val else ''
+                        except ValueError:
+                            bid['預算金額'] = val
+                    elif '公告' in key or '公佈' in key:
+                        bid['公告日'] = val
+                    elif '截止' in key or '截標' in key:
+                        bid['截止日'] = val
+
+                bids.append(bid)
+
+            if bids:
+                bid_df = pd.DataFrame(bids)
+                all_bids.append(bid_df)
+                print(f"   [OK] 中研院 {date}：{len(bid_df)} 筆")
+            else:
+                print(f"   [--] 中研院 {date}：無資料")
+
+        except requests.exceptions.Timeout:
+            print(f"   [FAIL] 中研院 {date}：連線超時")
+        except requests.exceptions.RequestException as e:
+            print(f"   [FAIL] 中研院 {date}：網路錯誤 - {e}")
+        except Exception as e:
+            print(f"   [FAIL] 中研院 {date}：解析錯誤 - {e}")
+
+    if all_bids:
+        result = pd.concat(all_bids, ignore_index=True)
+        result = result.fillna('')
+        # 依案號去重（同一案號只保留最新的）
+        if '案號' in result.columns:
+            result = result.drop_duplicates(subset=['案號'], keep='first')
+        print(f"   [OK] 中研院合計：{len(result)} 筆（去重後）")
+        return result
+    else:
+        print(f"   [FAIL] 中研院：近 {SINICA_LOOKBACK_DAYS} 天均無資料")
         return pd.DataFrame()
 
 
@@ -407,10 +443,7 @@ SCRAPER_MAP = {
 
 
 def scrape_source(source_name, status):
-    """
-    爬取單一站點，記錄結果到 status。
-    回傳 DataFrame（可能為空）。
-    """
+    """爬取單一站點，記錄結果到 status。"""
     scraper = SCRAPER_MAP[source_name]
     time_str = NOW_TW.strftime('%H:%M:%S')
 
@@ -453,163 +486,127 @@ def scrape_source(source_name, status):
 
 def main():
     """
-    主流程（含智慧重試）：
-      1. 讀取今日狀態，判斷是否需要執行
-      2. 只抓取失敗/pending 的站點
-      3. 合併所有資料（含先前成功的 + 本次新抓的）
-      4. 輸出 CSV / JSON / 狀態檔
+    主流程：
+      1. 執行爬蟲抓取最新資料。
+      2. 讀取現有的 latest.csv，與新抓取的資料合併。
+      3. 根據 '案號' 去重（以新資料優先）。
+      4. 根據 '公告日' 篩選，僅保留近 3 天的標案。
+      5. 輸出更新後的 CSV 與 JSON。
     """
     print("\n" + "=" * 70)
-    print("  三站標案抓取器 v1.3")
+    print("  三站標案抓取器 v1.5")
     print("=" * 70)
     print(f"  執行時間：{NOW_TW.strftime('%Y-%m-%d %H:%M:%S')} (台北時間)")
-    print(f"  保留天數：{KEEP_DAYS} 天")
+    print(f"  資料保留：近 3 天的所有標案")
     print("=" * 70 + "\n")
 
     os.makedirs('data', exist_ok=True)
     os.makedirs('docs', exist_ok=True)
 
-    # ========================================================================
-    # 步驟 1：讀取狀態，檢查是否需要執行
-    # ========================================================================
+    # 1. 讀取狀態與清理過期檔案
     status = load_status()
     attempt = status['attempt'] + 1
-
-    # 判斷哪些站需要重抓
-    need_scrape = []
-    for src in SOURCES:
-        src_status = status['sources'][src]['status']
-        if src_status != 'ok':
-            need_scrape.append(src)
-
-    if not need_scrape:
-        print("[SKIP] 今日所有站點皆已成功，無需重新抓取")
-        add_log(status, f"第 {attempt} 次執行：跳過，全部已成功")
-        status['attempt'] = attempt
-        save_status(status)
-        return
-
-    if attempt > MAX_DAILY_ATTEMPTS:
-        print(f"[SKIP] 今日已執行 {attempt - 1} 次，超過上限 {MAX_DAILY_ATTEMPTS} 次")
-        add_log(status, f"第 {attempt} 次執行：跳過，超過每日上限")
-        save_status(status)
-        return
-
     status['attempt'] = attempt
-    add_log(status, f"第 {attempt} 次執行，待抓取：{', '.join(need_scrape)}")
-
-    # ========================================================================
-    # 步驟 2：清理過期檔案（只在第一次執行時）
-    # ========================================================================
     if attempt == 1:
         cleanup_old_files()
 
-    # ========================================================================
-    # 步驟 3：抓取需要的站點
-    # ========================================================================
-    new_dfs = {}
-    for src in need_scrape:
+    # 2. 抓取新資料
+    all_new_dfs = []
+    for src in SOURCES:
         df = scrape_source(src, status)
         if not df.empty:
-            new_dfs[src] = df
+            all_new_dfs.append(df)
 
-    # ========================================================================
-    # 步驟 4：合併資料（先前成功的 + 本次新抓的）
-    # ========================================================================
-    all_dfs = []
+    if not all_new_dfs:
+        print("\n[WARN] 警告：本次抓取無新資料，將使用現有資料進行維護。")
+        new_bids = pd.DataFrame()
+    else:
+        new_bids = pd.concat(all_new_dfs, ignore_index=True)
 
-    # 載入先前已成功的站點資料（從現有的 data.json）
-    existing_data_file = 'docs/data.json'
-    if os.path.exists(existing_data_file):
+    # 3. 讀取歷史資料 (latest.csv)
+    latest_path = 'data/latest.csv'
+    if os.path.exists(latest_path):
         try:
-            with open(existing_data_file, 'r', encoding='utf-8') as f:
-                existing = json.load(f)
-            if existing.get('date') == TODAY_CN:
-                existing_df = pd.DataFrame(existing.get('data', []))
-                if not existing_df.empty:
-                    for src in SOURCES:
-                        if src not in need_scrape:
-                            # 這個站先前已成功，保留舊資料
-                            src_df = existing_df[existing_df['來源'] == src]
-                            if not src_df.empty:
-                                all_dfs.append(src_df)
-        except (json.JSONDecodeError, KeyError):
-            pass
+            old_bids = pd.read_csv(latest_path, dtype={'案號': str})
+        except Exception:
+            old_bids = pd.DataFrame()
+    else:
+        old_bids = pd.DataFrame()
 
-    # 加入本次新抓取的
-    for src, df in new_dfs.items():
-        all_dfs.append(df)
+    # 4. 合併與去重
+    # 合併新舊資料，新資料排在前面以在去重時優先保留
+    combined_bids = pd.concat([new_bids, old_bids], ignore_index=True)
+    combined_bids = combined_bids.fillna('')
 
-    if not all_dfs:
-        print("\n[WARN] 警告：無任何可用資料")
-        save_status(status)
-        # 不 exit(1)，讓 Actions 可以正常提交 status.json
-        return
+    if not combined_bids.empty:
+        # 依案號去重，保留最新的一筆
+        if '案號' in combined_bids.columns:
+            combined_bids = combined_bids.drop_duplicates(subset=['案號'], keep='first')
 
-    print("\n[MERGE] 合併資料...")
-    all_bids = pd.concat(all_dfs, ignore_index=True)
-    all_bids = all_bids.fillna('')  # NaN → 空字串（避免 JSON 輸出 NaN）
-    print(f"   [OK] 總計：{len(all_bids)} 筆")
+        # 5. 時間篩選：僅保留近 3 天的資料
+        # 統一處理日期格式以供篩選 (公告日可能格式不一，嘗試轉換為 YYYY-MM-DD)
+        def parse_date(d):
+            if not d: return None
+            d = str(d).replace('/', '-')
+            # 民國日期 115-03-05 -> 2026-03-05
+            match_roc = re.match(r'^(\d{2,3})-(\d{2})-(\d{2})', d)
+            if match_roc:
+                y = int(match_roc.group(1)) + 1911
+                return f"{y}-{match_roc.group(2)}-{match_roc.group(3)}"
+            # 西元日期 2026-03-05
+            match_iso = re.match(r'^(\d{4})-(\d{2})-(\d{2})', d)
+            if match_iso:
+                return f"{match_iso.group(1)}-{match_iso.group(2)}-{match_iso.group(3)}"
+            # ITRI 格式 20260305
+            if len(d) == 8 and d.isdigit():
+                return f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+            return None
 
-    print("\n[STAT] 各站明細：")
-    for source in all_bids['來源'].unique():
-        count = len(all_bids[all_bids['來源'] == source])
-        print(f"   - {source}：{count} 筆")
+        # 計算 3 天前的日期
+        cutoff_date = (NOW_TW - timedelta(days=2)).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        def is_recent(d):
+            p = parse_date(d)
+            if not p: return True # 無日期則保留
+            try:
+                dt = datetime.strptime(p, '%Y-%m-%d').replace(tzinfo=TW_TZ)
+                return dt >= cutoff_date
+            except:
+                return True
 
-    # ========================================================================
-    # 步驟 5：輸出 CSV
-    # ========================================================================
-    print("\n[SAVE] 存檔中...")
+        combined_bids['__is_recent'] = combined_bids['公告日'].apply(is_recent)
+        final_bids = combined_bids[combined_bids['__is_recent']].drop(columns=['__is_recent'])
+    else:
+        final_bids = combined_bids
 
-    csv_history = f'data/三站標案_{TODAY}.csv'
-    all_bids.to_csv(csv_history, index=False, encoding='utf-8-sig')
-    print(f"   [OK] CSV（歷史）: {csv_history}")
+    print(f"\n[MERGE] 合併完成：總計 {len(final_bids)} 筆標案 (已去重並保留近 3 日)")
 
-    csv_latest = 'data/latest.csv'
-    all_bids.to_csv(csv_latest, index=False, encoding='utf-8-sig')
-    print(f"   [OK] CSV（最新）: {csv_latest}")
+    # 6. 輸出結果
+    final_bids.to_csv(latest_path, index=False, encoding='utf-8-sig')
+    final_bids.to_csv(f'data/三站標案_{TODAY}.csv', index=False, encoding='utf-8-sig')
 
-    # ========================================================================
-    # 步驟 6：輸出 JSON
-    # ========================================================================
     json_data = {
         'update_time': NOW_TW.strftime('%Y-%m-%d %H:%M:%S'),
         'date': TODAY_CN,
-        'total': len(all_bids),
+        'total': len(final_bids),
         'sources': {
-            source: len(all_bids[all_bids['來源'] == source])
-            for source in all_bids['來源'].unique()
+            source: len(final_bids[final_bids['來源'] == source])
+            for source in final_bids['來源'].unique()
         },
-        'data': all_bids.to_dict('records')
+        'data': final_bids.to_dict('records')
     }
 
     with open('docs/data.json', 'w', encoding='utf-8') as f:
         json.dump(json_data, f, ensure_ascii=False, indent=2)
-    print(f"   [OK] JSON（最新）: docs/data.json")
-
-    daily_json = f'docs/data_{TODAY}.json'
-    with open(daily_json, 'w', encoding='utf-8') as f:
+    
+    with open(f'docs/data_{TODAY}.json', 'w', encoding='utf-8') as f:
         json.dump(json_data, f, ensure_ascii=False, indent=2)
-    print(f"   [OK] JSON（每日）: {daily_json}")
 
     generate_dates_manifest()
-
-    # ========================================================================
-    # 步驟 7：儲存狀態
-    # ========================================================================
     save_status(status)
 
-    # 統計結果
-    ok_count = sum(1 for s in status['sources'].values() if s['status'] == 'ok')
-    fail_count = len(SOURCES) - ok_count
-
     print("\n" + "=" * 70)
-    if fail_count == 0:
-        print(f"  [DONE] 全部成功！（第 {attempt} 次執行）")
-    else:
-        failed = [s for s in SOURCES if status['sources'][s]['status'] != 'ok']
-        print(f"  [DONE] 部分完成（{ok_count}/{len(SOURCES)}）")
-        print(f"  [WARN] 失敗站點：{', '.join(failed)}（將於 1 小時後重試）")
+    print(f"  [DONE] 執行完成！共更新 {len(final_bids)} 筆標案。")
     print("=" * 70 + "\n")
 
 
