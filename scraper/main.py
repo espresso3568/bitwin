@@ -256,7 +256,7 @@ def scrape_itri():
 # ============================================================================
 
 def scrape_iii():
-    """抓取資策會標案（HTML GridView 表格）"""
+    """抓取資策會標案（HTML GridView 表格），並點入詳情頁抓取預算金額"""
     print("[GET] 抓取資策會...")
 
     url = 'https://bid.iii.org.tw/bid/list/bid_new_list.aspx'
@@ -268,7 +268,7 @@ def scrape_iii():
 
         table = soup.find('table', id='GridView1')
         if not table:
-            print("   [FAIL] 資策會：找不到表格（可能網頁結構改變）")
+            print("   [FAIL] 資策會：找不到表格")
             return pd.DataFrame()
 
         all_rows = table.find_all('tr')
@@ -277,7 +277,9 @@ def scrape_iii():
             cols = row.find_all('td')
             if len(cols) >= 8:
                 data_rows.append(row)
-        rows = data_rows[:10]
+        
+        # 為了效能與避免被封鎖，先取前 15 筆
+        rows = data_rows[:15]
 
         bids = []
         for row in rows:
@@ -287,12 +289,42 @@ def scrape_iii():
             if link_href and not link_href.startswith('http'):
                 link_href = f"https://bid.iii.org.tw/bid/list/{link_href.lstrip('/')}"
 
+            case_no = cols[0].text.strip()
+            title = cols[2].text.strip()
+            
+            # 點入詳情頁抓取預算金額
+            budget = ''
+            if link_href:
+                try:
+                    time.sleep(0.5)  # 禮貌性延遲
+                    detail_resp = requests.get(link_href, headers=HEADERS, timeout=15)
+                    if detail_resp.ok:
+                        detail_soup = BeautifulSoup(detail_resp.text, 'html.parser')
+                        # 搜尋包含「預算」或「金額」的內容
+                        for tag in detail_soup.find_all(['span', 'td', 'div']):
+                            text = tag.get_text().strip()
+                            if '預算金額' in text or '採購預算' in text:
+                                # 嘗試提取金額
+                                match = re.search(r'[:：]\s*([\d,]+)', text)
+                                if match:
+                                    budget = match.group(1).replace(',', '')
+                                    break
+                                # 檢查下一個節點
+                                sib = tag.find_next_sibling()
+                                if sib:
+                                    sib_text = sib.get_text().strip().replace(',', '')
+                                    if sib_text.replace('.', '').isdigit():
+                                        budget = sib_text
+                                        break
+                except Exception as e:
+                    print(f"      [WARN] 資策會詳情頁抓取失敗 ({case_no}): {e}")
+
             bids.append({
                 '來源': '資策會',
-                '案號': cols[0].text.strip(),
-                '標題': cols[2].text.strip(),
+                '案號': case_no,
+                '標題': title,
                 '標題連結': link_href,
-                '預算金額': '',
+                '預算金額': budget,
                 '採購類型': cols[3].text.strip(),
                 '公佈日': cols[4].text.strip(),
                 '投標日': cols[5].text.strip(),
@@ -301,17 +333,11 @@ def scrape_iii():
             })
 
         df = pd.DataFrame(bids)
-        print(f"   [OK] 資策會：{len(df)} 筆")
+        print(f"   [OK] 資策會：{len(df)} 筆 (含預算金額)")
         return df
 
-    except requests.exceptions.Timeout:
-        print(f"   [FAIL] 資策會：連線超時（>{TIMEOUT}秒）")
-        return pd.DataFrame()
-    except requests.exceptions.RequestException as e:
-        print(f"   [FAIL] 資策會：網路錯誤 - {e}")
-        return pd.DataFrame()
     except Exception as e:
-        print(f"   [FAIL] 資策會：解析錯誤 - {e}")
+        print(f"   [FAIL] 資策會：錯誤 - {e}")
         return pd.DataFrame()
 
 
@@ -322,9 +348,7 @@ def scrape_iii():
 def scrape_sinica():
     """
     抓取中研院標案（近 SINICA_LOOKBACK_DAYS 天）
-
-    使用 BeautifulSoup 直接解析表格，以同時取得超連結。
-    資料表格欄位：標號 | 採購案名稱 | 預算金額 | 公告日期 | 截止日期
+    強化連結抓取：直接從行中尋找 <a> 標籤。
     """
     print(f"[GET] 抓取中研院（近 {SINICA_LOOKBACK_DAYS} 天）...")
 
@@ -340,7 +364,6 @@ def scrape_sinica():
 
             soup = BeautifulSoup(resp.text, 'html.parser')
 
-            # 找到資料表格（跳過搜尋表單等非資料表格）
             data_table = None
             for table in soup.find_all('table'):
                 headers = table.find_all('th')
@@ -351,39 +374,32 @@ def scrape_sinica():
                         break
 
             if not data_table:
-                print(f"   [--] 中研院 {date}：無資料")
                 continue
 
-            # 解析表頭
             th_cells = data_table.find_all('th')
             col_names = [th.text.strip() for th in th_cells]
 
-            # 解析資料列
-            rows = data_table.find_all('tr')[1:]  # 跳過表頭
+            rows = data_table.find_all('tr')[1:]
             bids = []
             for row in rows:
                 cols = row.find_all('td')
                 if len(cols) < 4:
                     continue
 
-                # 建立原始欄位對應
+                # 找超連結：優先找整行的第一個 <a>
+                link_href = ''
+                a_tag = row.find('a', href=True)
+                if a_tag:
+                    href = a_tag['href']
+                    if href and not href.startswith('http'):
+                        href = f"https://srp.sinica.edu.tw{href}"
+                    link_href = href
+
                 raw = {}
                 for idx, col in enumerate(cols):
                     if idx < len(col_names):
                         raw[col_names[idx]] = col.text.strip()
 
-                # 找超連結（中研院標題通常含有連結）
-                link_href = ''
-                for col in cols:
-                    a_tag = col.find('a', href=True)
-                    if a_tag:
-                        href = a_tag['href']
-                        if href and not href.startswith('http'):
-                            href = f"https://srp.sinica.edu.tw{href}"
-                        link_href = href
-                        break
-
-                # 欄位映射
                 bid = {'來源': '中研院', '標題連結': link_href, '查詢日期': date}
                 for key, val in raw.items():
                     if '標號' in key or '案號' in key:
@@ -391,7 +407,6 @@ def scrape_sinica():
                     elif '採購' in key and '名' in key:
                         bid['標題'] = val
                     elif '預算' in key or '金額' in key:
-                        # 嘗試轉數字
                         try:
                             clean_val = val.replace(',', '').replace('$', '').strip()
                             bid['預算金額'] = float(clean_val) if clean_val else ''
@@ -408,27 +423,17 @@ def scrape_sinica():
                 bid_df = pd.DataFrame(bids)
                 all_bids.append(bid_df)
                 print(f"   [OK] 中研院 {date}：{len(bid_df)} 筆")
-            else:
-                print(f"   [--] 中研院 {date}：無資料")
 
-        except requests.exceptions.Timeout:
-            print(f"   [FAIL] 中研院 {date}：連線超時")
-        except requests.exceptions.RequestException as e:
-            print(f"   [FAIL] 中研院 {date}：網路錯誤 - {e}")
         except Exception as e:
-            print(f"   [FAIL] 中研院 {date}：解析錯誤 - {e}")
+            print(f"   [FAIL] 中研院 {date}：{e}")
 
     if all_bids:
         result = pd.concat(all_bids, ignore_index=True)
         result = result.fillna('')
-        # 依案號去重（同一案號只保留最新的）
         if '案號' in result.columns:
             result = result.drop_duplicates(subset=['案號'], keep='first')
-        print(f"   [OK] 中研院合計：{len(result)} 筆（去重後）")
         return result
-    else:
-        print(f"   [FAIL] 中研院：近 {SINICA_LOOKBACK_DAYS} 天均無資料")
-        return pd.DataFrame()
+    return pd.DataFrame()
 
 
 # ============================================================================
