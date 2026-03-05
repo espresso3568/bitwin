@@ -515,6 +515,7 @@ def main():
 
     print("\n[MERGE] 合併資料...")
     all_bids = pd.concat(all_dfs, ignore_index=True)
+    all_bids = all_bids.fillna('')  # NaN → 空字串（避免 JSON 輸出 NaN）
     print(f"   [OK] 總計：{len(all_bids)} 筆")
 
     print("\n[STAT] 各站明細：")
