@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="工研院、資策會、中研院標案即時看板">
+    <title>BidWatch | 三站標案即時監控</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        /* ================================================================
+           CSS Variables
+           ================================================================ */
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a1f35;
+            --bg-card-hover: #1f2545;
+            --bg-glass: rgba(26, 31, 53, 0.7);
+            --border-color: rgba(99, 115, 255, 0.15);
+            --border-glow: rgba(99, 115, 255, 0.4);
+            --text-primary: #e8eaed;
+            --text-secondary: #8b92a5;
+            --text-muted: #5a6178;
+            --accent-blue: #6373ff;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00e676;
+            --accent-orange: #ff9100;
+            --accent-purple: #b388ff;
+            --accent-red: #ff5252;
+            --gradient-main: linear-gradient(135deg, #6373ff 0%, #00d4ff 100%);
+            --gradient-green: linear-gradient(135deg, #00e676 0%, #00bfa5 100%);
+            --gradient-orange: linear-gradient(135deg, #ff9100 0%, #ff6d00 100%);
+            --shadow-glow: 0 0 30px rgba(99, 115, 255, 0.15);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        /* ================================================================
+           Reset & Base
+           ================================================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Microsoft JhengHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* ================================================================
+           Animated Background
+           ================================================================ */
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(99, 115, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 115, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow-1 {
+            top: -200px; right: -100px;
+            background: var(--accent-blue);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-glow-2 {
+            bottom: -200px; left: -100px;
+            background: var(--accent-cyan);
+            animation: float 25s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            33% { transform: translate(30px, -30px); }
+            66% { transform: translate(-20px, 20px); }
+        }
+
+        /* ================================================================
+           Layout
+           ================================================================ */
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* ================================================================
+           Top Bar
+           ================================================================ */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            margin-bottom: 32px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 44px; height: 44px;
+            background: var(--gradient-main);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            box-shadow: 0 4px 20px rgba(99, 115, 255, 0.3);
+        }
+
+        .logo-text {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-badge {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ================================================================
+           Stats Cards
+           ================================================================ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .stat-card.total::before { background: var(--gradient-main); }
+        .stat-card.itri::before { background: var(--accent-cyan); }
+        .stat-card.iii::before { background: var(--gradient-green); }
+        .stat-card.sinica::before { background: var(--gradient-orange); }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-card.total .stat-value {
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-card.itri .stat-value { color: var(--accent-cyan); }
+        .stat-card.iii .stat-value { color: var(--accent-green); }
+        .stat-card.sinica .stat-value { color: var(--accent-orange); }
+
+        .stat-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ================================================================
+           Toolbar (Filters)
+           ================================================================ */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+
+        .toolbar label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .toolbar select,
+        .toolbar input[type="text"] {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            min-width: 200px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .toolbar select:focus,
+        .toolbar input[type="text"]:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(99, 115, 255, 0.1);
+        }
+
+        .toolbar select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .toolbar input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .result-count {
+            margin-left: auto;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .result-count strong {
+            color: var(--accent-cyan);
+        }
+
+        /* ================================================================
+           Date Picker Button
+           ================================================================ */
+        .date-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            min-width: 160px;
+            text-align: left;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-btn:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .date-btn.active {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(99, 115, 255, 0.1);
+        }
+
+        .date-btn-icon {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .date-btn-clear {
+            margin-left: auto;
+            font-size: 16px;
+            opacity: 0.5;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .date-btn-clear:hover {
+            opacity: 1;
+            color: var(--accent-red);
+        }
+
+        /* ================================================================
+           Calendar Dropdown
+           ================================================================ */
+        .calendar-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 100;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glow);
+            border-radius: var(--radius-md);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            padding: 16px;
+            display: none;
+            min-width: 300px;
+            user-select: none;
+        }
+
+        .calendar-dropdown.show {
+            display: block;
+            animation: calFadeIn 0.15s ease;
+        }
+
+        @keyframes calFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .cal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .cal-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .cal-nav {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 32px; height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .cal-nav:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .cal-nav:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+
+        .cal-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 6px;
+        }
+
+        .cal-weekday {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 0;
+        }
+
+        .cal-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+
+        .cal-day {
+            text-align: center;
+            padding: 8px 4px;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: default;
+            color: var(--text-muted);
+            opacity: 0.3;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.15s ease;
+        }
+
+        .cal-day.empty {
+            opacity: 0;
+        }
+
+        .cal-day.has-data {
+            opacity: 1;
+            color: var(--text-primary);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .cal-day.has-data::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+        }
+
+        .cal-day.has-data:hover {
+            background: rgba(99, 115, 255, 0.15);
+            color: var(--accent-cyan);
+        }
+
+        .cal-day.selected {
+            background: var(--accent-blue) !important;
+            color: #fff !important;
+        }
+
+        .cal-day.selected::after {
+            background: rgba(255,255,255,0.7);
+        }
+
+        .cal-day.today {
+            border: 1px solid var(--accent-blue);
+        }
+
+        /* ================================================================
+           Data Table
+           ================================================================ */
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+            max-height: 65vh;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        thead tr {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        th {
+            padding: 14px 20px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 16px 20px;
+            font-size: 13px;
+            color: var(--text-primary);
+            border-bottom: 1px solid rgba(99, 115, 255, 0.06);
+            vertical-align: middle;
+        }
+
+        tbody tr {
+            transition: background 0.15s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(99, 115, 255, 0.04);
+        }
+
+        /* Source Badges */
+        .source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .source-badge::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+        }
+
+        .source-itri {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+        .source-itri::before { background: var(--accent-cyan); }
+
+        .source-iii {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+        }
+        .source-iii::before { background: var(--accent-green); }
+
+        .source-sinica {
+            background: rgba(255, 145, 0, 0.1);
+            color: var(--accent-orange);
+            border: 1px solid rgba(255, 145, 0, 0.2);
+        }
+        .source-sinica::before { background: var(--accent-orange); }
+
+        .case-no {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .title-link {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .title-link:hover {
+            color: var(--accent-cyan);
+        }
+
+        .date-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+        }
+
+        .status-closed {
+            background: rgba(255, 82, 82, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 82, 82, 0.2);
+        }
+
+        .status-default {
+            background: rgba(139, 146, 165, 0.1);
+            color: var(--text-secondary);
+            border: 1px solid rgba(139, 146, 165, 0.2);
+        }
+
+        /* ================================================================
+           Empty / Loading / Error
+           ================================================================ */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+        }
+
+        .loader {
+            width: 48px; height: 48px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--accent-red);
+        }
+
+        /* ================================================================
+           Footer
+           ================================================================ */
+        .footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-muted);
+            background: rgba(17, 24, 39, 0.5);
+        }
+
+        .footer-time {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Current date banner */
+        .date-banner {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 12px 18px;
+            background: rgba(99, 115, 255, 0.08);
+            border: 1px solid rgba(99, 115, 255, 0.2);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .date-banner.show {
+            display: flex;
+        }
+
+        .date-banner-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0 4px;
+            transition: color 0.15s;
+        }
+
+        .date-banner-close:hover {
+            color: var(--accent-red);
+        }
+
+        /* ================================================================
+           Responsive
+           ================================================================ */
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app { padding: 16px; }
+
+            .top-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .stat-card { padding: 18px; }
+            .stat-value { font-size: 28px; }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .toolbar-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .toolbar select,
+            .toolbar input[type="text"],
+            .date-btn {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .result-count { margin-left: 0; }
+            th, td { padding: 12px 14px; }
+
+            .footer {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+
+            .calendar-dropdown {
+                left: 0;
+                right: 0;
+                min-width: unset;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { padding: 14px; }
+            .stat-value { font-size: 24px; }
+            .logo-text { font-size: 18px; }
+        }
+
+        /* ================================================================
+           Status Alert
+           ================================================================ */
+        .status-alert {
+            display: none;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .status-alert.show { display: block; }
+
+        .status-alert.alert-warn {
+            background: rgba(255, 145, 0, 0.08);
+            border: 1px solid rgba(255, 145, 0, 0.25);
+            color: var(--accent-orange);
+        }
+
+        .status-alert.alert-error {
+            background: rgba(255, 82, 82, 0.08);
+            border: 1px solid rgba(255, 82, 82, 0.25);
+            color: var(--accent-red);
+        }
+
+        .status-alert-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .status-alert-detail {
+            font-size: 12px;
+            opacity: 0.85;
+        }
+
+        .status-alert-retry {
+            font-size: 11px;
+            margin-top: 6px;
+            opacity: 0.6;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ================================================================
+           Log Panel
+           ================================================================ */
+        .log-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.15s ease;
+            margin-top: 10px;
+        }
+
+        .log-toggle:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .log-panel {
+            display: none;
+            margin-top: 12px;
+            padding: 14px 16px;
+            background: rgba(10, 14, 26, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1.8;
+        }
+
+        .log-panel.show { display: block; }
+
+        .log-entry {
+            color: var(--text-muted);
+        }
+
+        .log-entry .log-time {
+            color: var(--text-secondary);
+            margin-right: 8px;
+        }
+
+        .log-panel::-webkit-scrollbar { width: 4px; }
+        .log-panel::-webkit-scrollbar-track { background: transparent; }
+        .log-panel::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
+        /* Source status indicators on stat cards */
+        .stat-status {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-status.s-ok {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+        }
+
+        .stat-status.s-fail {
+            background: rgba(255, 82, 82, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 82, 82, 0.2);
+        }
+
+        .stat-status.s-pending {
+            background: rgba(139, 146, 165, 0.1);
+            color: var(--text-muted);
+            border: 1px solid rgba(139, 146, 165, 0.2);
+        }
+
+        /* ================================================================
+           Scrollbar
+           ================================================================ */
+        .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .table-scroll::-webkit-scrollbar-track { background: transparent; }
+        .table-scroll::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-glow); }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <div class="app">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="logo">
+                <div class="logo-icon">B</div>
+                <div class="logo-text">BidWatch</div>
+                <div class="logo-badge">Live</div>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="stat-label">Total Tenders</div>
+                <div class="stat-value" id="totalCount">--</div>
+                <div class="stat-sub">ALL SOURCES</div>
+            </div>
+            <div class="stat-card itri">
+                <div class="stat-label">ITRI / 工研院</div>
+                <div class="stat-value" id="itriCount">--</div>
+                <div class="stat-sub">vendor.itri.org.tw</div>
+            </div>
+            <div class="stat-card iii">
+                <div class="stat-label">III / 資策會</div>
+                <div class="stat-value" id="iiiCount">--</div>
+                <div class="stat-sub">bid.iii.org.tw</div>
+            </div>
+            <div class="stat-card sinica">
+                <div class="stat-label">Sinica / 中研院</div>
+                <div class="stat-value" id="sinicaCount">--</div>
+                <div class="stat-sub">srp.sinica.edu.tw</div>
+            </div>
+        </div>
+
+        <!-- Date Banner (shown when viewing historical data) -->
+        <div class="date-banner" id="dateBanner">
+            <span>Viewing data for: <strong id="bannerDate"></strong></span>
+            <button class="date-banner-close" id="bannerClose" title="Back to latest">&times;</button>
+        </div>
+
+        <!-- Status Alert (shown when sources have issues) -->
+        <div class="status-alert" id="statusAlert">
+            <div class="status-alert-title" id="statusAlertTitle"></div>
+            <div class="status-alert-detail" id="statusAlertDetail"></div>
+            <div class="status-alert-retry" id="statusAlertRetry"></div>
+            <button class="log-toggle" id="logToggle">View Scraper Logs</button>
+            <div class="log-panel" id="logPanel"></div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-group" style="position:relative;">
+                <label>Date</label>
+                <button class="date-btn" id="dateBtn">
+                    <span class="date-btn-icon">&#9776;</span>
+                    <span id="dateBtnText">Latest</span>
+                </button>
+                <!-- Calendar Dropdown -->
+                <div class="calendar-dropdown" id="calendarDropdown">
+                    <div class="cal-header">
+                        <button class="cal-nav" id="calPrev">&#9664;</button>
+                        <div class="cal-title" id="calTitle">2026 / 03</div>
+                        <button class="cal-nav" id="calNext">&#9654;</button>
+                    </div>
+                    <div class="cal-weekdays">
+                        <div class="cal-weekday">Sun</div>
+                        <div class="cal-weekday">Mon</div>
+                        <div class="cal-weekday">Tue</div>
+                        <div class="cal-weekday">Wed</div>
+                        <div class="cal-weekday">Thu</div>
+                        <div class="cal-weekday">Fri</div>
+                        <div class="cal-weekday">Sat</div>
+                    </div>
+                    <div class="cal-days" id="calDays"></div>
+                </div>
+            </div>
+
+            <div class="toolbar-group">
+                <label for="sourceFilter">Source</label>
+                <select id="sourceFilter">
+                    <option value="">All Sources</option>
+                    <option value="工研院">ITRI / 工研院</option>
+                    <option value="資策會">III / 資策會</option>
+                    <option value="中研院">Sinica / 中研院</option>
+                </select>
+            </div>
+
+            <div class="toolbar-group">
+                <label for="searchInput">Search</label>
+                <input type="text" id="searchInput" placeholder="Case ID or title...">
+            </div>
+
+            <div class="result-count" id="resultCount"></div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container">
+            <div id="loading" class="loading-container">
+                <div class="loader"></div>
+                <div class="loading-text">Fetching tender data...</div>
+            </div>
+
+            <div id="tableWrapper" style="display:none;">
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:120px;">Source</th>
+                                <th style="width:160px;">Case ID</th>
+                                <th style="min-width:300px;">Title</th>
+                                <th style="width:120px;">Published</th>
+                                <th style="width:120px;">Deadline</th>
+                                <th style="width:100px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <div class="footer">
+                    <div>BidWatch v1.2 | Auto-refreshed daily 08:00 TST | 30-day history</div>
+                    <div class="footer-time" id="updateTime">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // Utility
+        // ================================================================
+        function esc(str) {
+            if (str === null || str === undefined) return '';
+            const el = document.createElement('div');
+            el.textContent = String(str);
+            return el.innerHTML;
+        }
+
+        // ================================================================
+        // State
+        // ================================================================
+        let allData = [];
+        let availableDates = [];  // ['2026-03-05', '2026-03-04', ...]
+        let availableDateSet = new Set();
+        let selectedDate = null;  // null = latest
+        let calYear = 0;
+        let calMonth = 0; // 0-indexed
+
+        // ================================================================
+        // Init: Load dates manifest, data, and status
+        // ================================================================
+        Promise.all([
+            fetch('dates.json').then(r => r.ok ? r.json() : { dates: [] }).catch(() => ({ dates: [] })),
+            fetch('data.json').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+            fetch('status.json').then(r => r.ok ? r.json() : null).catch(() => null)
+        ])
+        .then(([datesData, latestData, statusData]) => {
+            availableDates = datesData.dates || [];
+            availableDateSet = new Set(availableDates);
+
+            // Init calendar to current month
+            var now = new Date();
+            calYear = now.getFullYear();
+            calMonth = now.getMonth();
+
+            applyData(latestData);
+
+            // Show status alerts if any source failed
+            if (statusData) {
+                renderStatus(statusData);
+            }
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('tableWrapper').style.display = 'block';
+        })
+        .catch(err => {
+            document.getElementById('loading').innerHTML =
+                '<div class="error-state"><div style="font-size:24px;margin-bottom:12px;">Connection Error</div>' +
+                '<div>' + esc(err.message) + '</div></div>';
+            document.getElementById('statusText').textContent = 'Connection failed';
+            document.getElementById('statusDot').style.background = 'var(--accent-red)';
+        });
+
+        // ================================================================
+        // Apply data to UI
+        // ================================================================
+        function applyData(data) {
+            allData = data.data || [];
+
+            document.getElementById('totalCount').textContent = data.total || 0;
+            document.getElementById('itriCount').textContent = (data.sources && data.sources['工研院']) || 0;
+            document.getElementById('iiiCount').textContent = (data.sources && data.sources['資策會']) || 0;
+            document.getElementById('sinicaCount').textContent = (data.sources && data.sources['中研院']) || 0;
+
+            document.getElementById('statusText').textContent = 'Last sync: ' + (data.update_time || 'unknown');
+            document.getElementById('updateTime').textContent = 'Updated: ' + (data.update_time || '--');
+
+            renderTable(allData);
+        }
+
+        // ================================================================
+        // Load data for a specific date
+        // ================================================================
+        function loadDate(dateStr) {
+            if (!dateStr) {
+                // Load latest
+                selectedDate = null;
+                document.getElementById('dateBtnText').textContent = 'Latest';
+                document.getElementById('dateBanner').classList.remove('show');
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('tableWrapper').style.display = 'none';
+
+                fetch('data.json')
+                    .then(r => r.json())
+                    .then(data => {
+                        applyData(data);
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('tableWrapper').style.display = 'block';
+                    });
+                return;
+            }
+
+            selectedDate = dateStr;
+            var fileDate = dateStr.replace(/-/g, '');
+            document.getElementById('dateBtnText').textContent = dateStr;
+            document.getElementById('bannerDate').textContent = dateStr;
+            document.getElementById('dateBanner').classList.add('show');
+
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('tableWrapper').style.display = 'none';
+
+            fetch('data_' + fileDate + '.json')
+                .then(r => {
+                    if (!r.ok) throw new Error('No data for ' + dateStr);
+                    return r.json();
+                })
+                .then(data => {
+                    applyData(data);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('tableWrapper').style.display = 'block';
+                })
+                .catch(err => {
+                    document.getElementById('loading').innerHTML =
+                        '<div class="error-state"><div style="margin-bottom:8px;">No data available</div>' +
+                        '<div style="font-size:12px;color:var(--text-muted);">' + esc(dateStr) + '</div></div>';
+                });
+
+            // Close calendar
+            document.getElementById('calendarDropdown').classList.remove('show');
+            document.getElementById('dateBtn').classList.remove('active');
+            renderCalendar();
+        }
+
+        // Banner close → back to latest
+        document.getElementById('bannerClose').addEventListener('click', function() {
+            loadDate(null);
+            renderCalendar();
+        });
+
+        // ================================================================
+        // Calendar
+        // ================================================================
+        function renderCalendar() {
+            var titleEl = document.getElementById('calTitle');
+            var daysEl = document.getElementById('calDays');
+            var monthNames = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+
+            titleEl.textContent = calYear + ' / ' + monthNames[calMonth];
+
+            var firstDay = new Date(calYear, calMonth, 1).getDay();
+            var daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+            var today = new Date();
+            var todayStr = today.getFullYear() + '-' +
+                String(today.getMonth() + 1).padStart(2, '0') + '-' +
+                String(today.getDate()).padStart(2, '0');
+
+            var html = '';
+
+            // Empty cells before first day
+            for (var i = 0; i < firstDay; i++) {
+                html += '<div class="cal-day empty"></div>';
+            }
+
+            // Day cells
+            for (var d = 1; d <= daysInMonth; d++) {
+                var dateStr = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                var classes = ['cal-day'];
+                var hasData = availableDateSet.has(dateStr);
+
+                if (hasData) classes.push('has-data');
+                if (dateStr === todayStr) classes.push('today');
+                if (dateStr === selectedDate) classes.push('selected');
+
+                if (hasData) {
+                    html += '<div class="' + classes.join(' ') + '" data-date="' + dateStr + '">' + d + '</div>';
+                } else {
+                    html += '<div class="' + classes.join(' ') + '">' + d + '</div>';
+                }
+            }
+
+            daysEl.innerHTML = html;
+
+            // Bind click on has-data days
+            daysEl.querySelectorAll('.cal-day.has-data').forEach(function(el) {
+                el.addEventListener('click', function() {
+                    loadDate(this.getAttribute('data-date'));
+                });
+            });
+        }
+
+        // Calendar toggle
+        document.getElementById('dateBtn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            var dd = document.getElementById('calendarDropdown');
+            var isOpen = dd.classList.contains('show');
+            dd.classList.toggle('show');
+            this.classList.toggle('active');
+            if (!isOpen) renderCalendar();
+        });
+
+        // Calendar nav
+        document.getElementById('calPrev').addEventListener('click', function(e) {
+            e.stopPropagation();
+            calMonth--;
+            if (calMonth < 0) { calMonth = 11; calYear--; }
+            renderCalendar();
+        });
+
+        document.getElementById('calNext').addEventListener('click', function(e) {
+            e.stopPropagation();
+            calMonth++;
+            if (calMonth > 11) { calMonth = 0; calYear++; }
+            renderCalendar();
+        });
+
+        // Close calendar on outside click
+        document.addEventListener('click', function(e) {
+            var dd = document.getElementById('calendarDropdown');
+            var btn = document.getElementById('dateBtn');
+            if (!dd.contains(e.target) && !btn.contains(e.target)) {
+                dd.classList.remove('show');
+                btn.classList.remove('active');
+            }
+        });
+
+        // ================================================================
+        // Render Table
+        // ================================================================
+        function renderTable(data) {
+            var tbody = document.getElementById('tableBody');
+
+            document.getElementById('resultCount').innerHTML =
+                'Showing <strong>' + data.length + '</strong> of ' + allData.length + ' records';
+
+            if (data.length === 0) {
+                tbody.innerHTML =
+                    '<tr><td colspan="6"><div class="empty-state">' +
+                    '<div class="empty-state-icon">[ ]</div>' +
+                    '<div>No matching records found</div></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(function(row) {
+                var source = row['來源'] || '';
+                var badgeClass = 'source-itri';
+                if (source === '資策會') badgeClass = 'source-iii';
+                else if (source === '中研院') badgeClass = 'source-sinica';
+
+                var titleText = esc(row['標題'] || '-');
+                var title;
+                if (row['標題連結']) {
+                    title = '<a href="' + esc(row['標題連結']) + '" target="_blank" rel="noopener noreferrer" class="title-link">' + titleText + '</a>';
+                } else {
+                    title = titleText;
+                }
+
+                var pubDate = esc(row['公告日'] || row['公佈日'] || '-');
+                var endDate = esc(row['截止日'] || row['投標日'] || '-');
+
+                var rawStatus = row['狀態'] || '-';
+                var statusClass = 'status-default';
+                var statusLabel = esc(rawStatus);
+                if (rawStatus === 'P' || rawStatus === '公告中') {
+                    statusClass = 'status-active';
+                    statusLabel = 'Active';
+                } else if (rawStatus === 'C' || rawStatus === '已結案') {
+                    statusClass = 'status-closed';
+                    statusLabel = 'Closed';
+                }
+
+                return '<tr>' +
+                    '<td><span class="source-badge ' + badgeClass + '">' + esc(source) + '</span></td>' +
+                    '<td><span class="case-no">' + esc(row['案號'] || '-') + '</span></td>' +
+                    '<td>' + title + '</td>' +
+                    '<td><span class="date-text">' + pubDate + '</span></td>' +
+                    '<td><span class="date-text">' + endDate + '</span></td>' +
+                    '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        // ================================================================
+        // Filters
+        // ================================================================
+        function applyFilters() {
+            var source = document.getElementById('sourceFilter').value;
+            var search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            var filtered = allData.filter(function(row) {
+                var matchSource = !source || row['來源'] === source;
+                var matchSearch = !search ||
+                    (row['案號'] && row['案號'].toLowerCase().indexOf(search) !== -1) ||
+                    (row['標題'] && row['標題'].toLowerCase().indexOf(search) !== -1);
+                return matchSource && matchSearch;
+            });
+
+            renderTable(filtered);
+        }
+
+        document.getElementById('sourceFilter').addEventListener('change', applyFilters);
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+        // ================================================================
+        // Status & Logs
+        // ================================================================
+        function renderStatus(status) {
+            if (!status || !status.sources) return;
+
+            var sources = status.sources;
+            var failedSources = [];
+            var failDetails = [];
+
+            // Check each source
+            var sourceMap = {
+                '工研院': { cardId: 'itriCount', label: 'ITRI' },
+                '資策會': { cardId: 'iiiCount', label: 'III' },
+                '中研院': { cardId: 'sinicaCount', label: 'Sinica' }
+            };
+
+            for (var srcName in sourceMap) {
+                var src = sources[srcName];
+                if (!src) continue;
+
+                // Add status indicator to stat card
+                var cardEl = document.getElementById(sourceMap[srcName].cardId);
+                if (cardEl && cardEl.parentElement) {
+                    var existingBadge = cardEl.parentElement.querySelector('.stat-status');
+                    if (existingBadge) existingBadge.remove();
+
+                    var badge = document.createElement('div');
+                    badge.className = 'stat-status';
+                    if (src.status === 'ok') {
+                        badge.className += ' s-ok';
+                        badge.textContent = 'Online';
+                    } else if (src.status === 'fail' || src.status === 'error') {
+                        badge.className += ' s-fail';
+                        badge.textContent = 'Offline';
+                        failedSources.push(srcName);
+                        failDetails.push(srcName + ': ' + (src.error || 'Unknown error'));
+                    } else {
+                        badge.className += ' s-pending';
+                        badge.textContent = 'Pending';
+                    }
+                    cardEl.parentElement.appendChild(badge);
+                }
+            }
+
+            // Show alert if there are failures
+            if (failedSources.length > 0) {
+                var alertEl = document.getElementById('statusAlert');
+                var titleEl = document.getElementById('statusAlertTitle');
+                var detailEl = document.getElementById('statusAlertDetail');
+                var retryEl = document.getElementById('statusAlertRetry');
+
+                if (failedSources.length === 3) {
+                    alertEl.className = 'status-alert alert-error show';
+                    titleEl.textContent = 'All sources unavailable';
+                } else {
+                    alertEl.className = 'status-alert alert-warn show';
+                    titleEl.textContent = failedSources.join(', ') + ' unavailable';
+                }
+
+                detailEl.innerHTML = failDetails.map(function(d) { return esc(d); }).join('<br>');
+
+                var attempt = status.attempt || 0;
+                var maxAttempts = 5;
+                if (attempt < maxAttempts) {
+                    retryEl.textContent = 'Attempt ' + attempt + '/' + maxAttempts + ' - next retry in ~1 hour';
+                } else {
+                    retryEl.textContent = 'Attempt ' + attempt + '/' + maxAttempts + ' - max retries reached for today';
+                }
+            }
+
+            // Render logs
+            if (status.logs && status.logs.length > 0) {
+                var logHtml = status.logs.map(function(entry) {
+                    return '<div class="log-entry"><span class="log-time">[' + esc(entry.time) + ']</span>' + esc(entry.msg) + '</div>';
+                }).join('');
+                document.getElementById('logPanel').innerHTML = logHtml;
+            } else {
+                document.getElementById('logToggle').style.display = 'none';
+            }
+        }
+
+        // Log toggle
+        document.getElementById('logToggle').addEventListener('click', function() {
+            var panel = document.getElementById('logPanel');
+            var isOpen = panel.classList.contains('show');
+            panel.classList.toggle('show');
+            this.textContent = isOpen ? 'View Scraper Logs' : 'Hide Logs';
+        });
+    </script>
+</body>
+</html>
