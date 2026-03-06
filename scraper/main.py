@@ -44,6 +44,37 @@ SOURCES = ['工研院', '資策會', '中研院']
 STATUS_FILE = 'docs/status.json'
 
 # ============================================================================
+# 日期處理工具
+# ============================================================================
+
+def parse_date_to_iso(d):
+    """將各種格式日期轉為 ISO (YYYY-MM-DD) 以便邏輯運算"""
+    if not d: return None
+    d = str(d).strip().replace('/', '-')
+    # ITRI 8碼格式 20260306
+    if len(d) == 8 and d.isdigit(): return f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+    # 民國格式 115-03-06
+    match_roc = re.match(r'^(\d{2,3})-(\d{2})-(\d{2})', d)
+    if match_roc:
+        y = int(match_roc.group(1)) + 1911
+        return f"{y}-{match_roc.group(2)}-{match_roc.group(3)}"
+    # 西元格式 2026-03-06
+    match_iso = re.match(r'^(\d{4})-(\d{2})-(\d{2})', d)
+    if match_iso:
+        return f"{match_iso.group(1)}-{match_iso.group(2)}-{match_iso.group(3)}"
+    return None
+
+def format_to_roc(d):
+    """將日期統一轉換為民國格式 YYY/MM/DD (例如 115/03/06)"""
+    iso = parse_date_to_iso(d)
+    if not iso: return str(d) if d else ""
+    try:
+        y, m, d = iso.split('-')
+        return f"{int(y)-1911}/{m}/{d}"
+    except:
+        return str(d)
+
+# ============================================================================
 # 狀態管理與輔助函式
 # ============================================================================
 
@@ -140,6 +171,7 @@ def scrape_itri():
             # 提取核心欄位
             bid_info = info.get('BidInfo', {})
             case_no = bid_info.get('CNo', '')
+            seq = info.get('BidDocseqno', '')
             title = bid_info.get('CName', '')
             budget = str(bid_info.get('Budget', bid_info.get('BudgetAmount', '')))
             
@@ -155,7 +187,7 @@ def scrape_itri():
                 '來源': '工研院',
                 '案號': case_no,
                 '標題': title,
-                '標題連結': f"https://vendor.itri.org.tw/broadBdet.aspx?CNo={case_no}" if case_no else '',
+                '標題連結': f"https://vendor.itri.org.tw/broadBdetail2.aspx?seq={seq}" if seq else '',
                 '預算金額': budget,
                 '採購方式': bid_info.get('BidMethod', ''),
                 '公告日': pub_date,
@@ -291,7 +323,12 @@ def main():
         except: return True
 
     if not final_df.empty:
+        # 篩選近 3 日 (此時還是 ISO 格式或原始格式)
         final_df = final_df[final_df['公告日'].apply(is_recent)]
+        
+        # 存檔前：格式化日期為民國格式 (YYY/MM/DD)
+        final_df['公告日'] = final_df['公告日'].apply(format_to_roc)
+        final_df['截止日'] = final_df['截止日'].apply(format_to_roc)
 
     # 存檔
     final_df.to_csv(latest_path, index=False, encoding='utf-8-sig')

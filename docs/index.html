@@ -1179,7 +1179,7 @@
                 <label>Date</label>
                 <button class="date-btn" id="dateBtn">
                     <span class="date-btn-icon">&#9776;</span>
-                    <span id="dateBtnText">Latest</span>
+                    <span id="dateBtnText">近三日</span>
                 </button>
                 <!-- Calendar Dropdown -->
                 <div class="calendar-dropdown" id="calendarDropdown">
@@ -1272,10 +1272,8 @@
          */
         function toROCDate(dateStr) {
             if (!dateStr || dateStr === '-' || dateStr === '') return '-';
-            dateStr = String(dateStr).trim();
-
-            // 已是民國格式（年份 < 200）
-            if (/^\d{2,3}\//.test(dateStr)) return dateStr;
+            return String(dateStr).trim();
+        }\//.test(dateStr)) return dateStr;
 
             // 西元格式 YYYY-MM-DD 或 YYYY-MM-DD HH:MM
             var m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})(.*)/);
