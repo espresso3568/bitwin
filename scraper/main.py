@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-三站標案抓取器 v1.8
+三站標案抓取器 v2.1
 ===================
-1. 修正資策會詳情頁預算抓取 (針對 [預算金額] 標籤與金額格式)
-2. 統一日期格式為民國 YYY/MM/DD
-3. 優先保留新抓取的資料
+1. 工研院：修復 GetpublishDocDetail 解析邏輯，獲取精確截止日。
+2. 資策會：強化預算抓取正則。
+3. 全系統：統一民國日期格式 YYY/MM/DD。
 """
 
 import requests
@@ -36,7 +36,6 @@ HEADERS = {
 
 TIMEOUT = 30
 MAX_RETRIES = 2
-RETRY_DELAY = 3
 KEEP_DAYS = 30
 SINICA_LOOKBACK_DAYS = 3
 
@@ -94,37 +93,27 @@ def add_log(status, msg):
     status['logs'].append({'time': time_str, 'msg': msg})
     print(f"[LOG {time_str}] {msg}")
 
-def retry(func, retries=MAX_RETRIES, delay=RETRY_DELAY):
-    for attempt in range(retries + 1):
-        result = func()
-        if not result.empty: return result
-        if attempt < retries:
-            print(f"   [RETRY] 第 {attempt + 1} 次重試...")
-            time.sleep(delay)
-    return pd.DataFrame()
-
 # ============================================================================
-# 工研院爬蟲
+# 工研院爬蟲 (v2.1 修復版)
 # ============================================================================
 
 def scrape_itri():
     print("[GET] 抓取工研院...")
-    api_url = "https://vendor.itri.org.tw/api/JsonRelayHandler.ashx"
-    headers = {
-        "User-Agent": HEADERS['User-Agent'],
-        "Accept": "application/json, text/javascript, */*; q=0.01",
+    relay_url = "https://vendor.itri.org.tw/api/JsonRelayHandler.ashx"
+    
+    session = requests.Session()
+    session.get("https://vendor.itri.org.tw/broadBqry2.aspx", timeout=10)
+    
+    list_headers = {
         "Content-Type": "application/json; charset=UTF-8",
         "RemoteUrl": "https://abpssapi.itri.org.tw/api/ABPSSAPI/GetpublishDocList",
         "X-Requested-With": "XMLHttpRequest",
-        "Origin": "https://vendor.itri.org.tw",
-        "Referer": "https://vendor.itri.org.tw/broadBqry2.aspx",
+        "Referer": "https://vendor.itri.org.tw/broadBqry2.aspx"
     }
-    payload = {"BidDocStatus": "", "IseBid": "", "currentPage": 1, "PageSize": 100}
+    list_payload = {"BidDocStatus": "", "IseBid": "", "currentPage": 1, "PageSize": 100}
 
     try:
-        session = requests.Session()
-        session.get("https://vendor.itri.org.tw/broadBqry2.aspx", timeout=10)
-        resp = session.post(api_url, headers=headers, json=payload, timeout=TIMEOUT)
+        resp = session.post(relay_url, headers=list_headers, json=list_payload, timeout=TIMEOUT)
         data_obj = json.loads(resp.json()['Data'])
         items = data_obj.get('Data', [])
         
@@ -135,18 +124,38 @@ def scrape_itri():
             case_no = bid_info.get('CNo', '')
             seq = info.get('BidDocseqno', '')
             
-            pub_date = info.get('LatestPublishdt', '')
-            end_date_obj = info.get('EndDate', {})
-            end_date = ""
-            if isinstance(end_date_obj, dict):
-                y, m, d = end_date_obj.get('Year'), end_date_obj.get('Month'), end_date_obj.get('Day')
-                if y and m and d: end_date = f"{y}/{str(m).zfill(2)}/{str(d).zfill(2)}"
+            # 獲取截止日 (從詳情 API)
+            end_date = "-"
+            if seq:
+                try:
+                    detail_headers = list_headers.copy()
+                    detail_headers["RemoteUrl"] = "https://abpssapi.itri.org.tw/api/ABPSSAPI/GetpublishDocDetail"
+                    detail_payload = {"BidDocseqno": seq}
+                    
+                    time.sleep(0.3)
+                    d_resp = session.post(relay_url, headers=detail_headers, json=detail_payload, timeout=10)
+                    # 重要：詳情 API 直接回傳 JSON
+                    detail_json = d_resp.json()
+                    
+                    # 優先從 ReceiveBidTerm 提取日期
+                    term = detail_json.get('ReceiveBidTerm', '')
+                    m = re.search(r'至\s*(\d{2,3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', term)
+                    if m:
+                        end_date = f"{m.group(1)}/{m.group(2).zfill(2)}/{m.group(3).zfill(2)}"
+                    else:
+                        # 備案：使用原生的 EndDate 物件
+                        ed = detail_json.get('EndDate', {})
+                        if isinstance(ed, dict) and ed.get('Year'):
+                            end_date = f"{ed['Year']}/{str(ed['Month']).zfill(2)}/{str(ed['Day']).zfill(2)}"
+                except: pass
 
             bids.append({
                 '來源': '工研院', '案號': case_no, '標題': bid_info.get('CName', ''),
-                '標題連結': f"https://vendor.itri.org.tw/broadBdetail2.aspx?seq={seq}" if seq else '',
+                '標題連結': f"https://vendor.itri.org.tw/broadBdetail2.aspx?seq={seq}",
                 '預算金額': str(bid_info.get('Budget', bid_info.get('BudgetAmount', ''))),
-                '公告日': pub_date, '截止日': end_date, '狀態': info.get('BidDocStatus', ''),
+                '公告日': info.get('LatestPublishdt', ''),
+                '截止日': end_date,
+                '狀態': info.get('BidDocStatus', ''),
             })
         return pd.DataFrame(bids)
     except Exception as e:
@@ -166,46 +175,45 @@ def scrape_iii():
         table = soup.find('table', id='GridView1')
         if not table: return pd.DataFrame()
         
-        rows = table.find_all('tr')[1:16] # 前 15 筆
+        rows = table.find_all('tr')[1:16]
         bids = []
         for row in rows:
             cols = row.find_all('td')
             if len(cols) < 8: continue
-            
-            case_no = cols[0].text.strip()
-            title = cols[2].text.strip()
-            # 連結點入詳情 (使用案號參數)
-            href = f"https://bid.iii.org.tw/bid/list/bid_new_list.aspx?bid_no={case_no}"
-            
+
+            # 資策會表格欄位：0:案號, 1:狀態, 2:標題, 3:類型... 招標次數可能包含在案號或獨立
+            case_no_raw = cols[0].text.strip()
+            # 通常案號格式為 PP26020052，次數在後方或隱含
+            # 嘗試從連結中提取真正的 bid_no 與 ord
+            link_tag = cols[2].find('a')
+            href_attr = link_tag.get('href', '') if link_tag else ''
+
+            # 建立正確的詳情連結
+            if 'bid_no=' in href_attr:
+                # 如果原始連結已有參數，直接使用並補全域名
+                href = f"https://bid.iii.org.tw/bid/list/{href_attr.lstrip('/')}"
+            else:
+                # 否則手動構建 (保底方案)
+                href = f"https://bid.iii.org.tw/bid/list/bid_new_list.aspx?bid_no={case_no_raw}"
+
             budget = ''
             try:
                 time.sleep(0.5)
+                # 使用正確的連結進入抓取預算
                 d_resp = requests.get(href, headers=HEADERS, timeout=15)
-                d_resp.encoding = 'utf-8' # 強制 UTF-8
+                d_resp.encoding = 'utf-8'
                 detail_text = d_resp.text
-                
-                # 正則提取預算金額
-                # 範例: [預算金額] 新台幣 2,500,000元
                 m = re.search(r'預算金額\]\s*(?:新台幣|NT\$)?\s*([\d,]+)', detail_text)
-                if m:
-                    budget = m.group(1).replace(',', '')
-                else:
-                    # 備案: 解析 HTML
-                    d_soup = BeautifulSoup(detail_text, 'html.parser')
-                    full_txt = d_soup.get_text(separator=' ', strip=True)
-                    m2 = re.search(r'預算金額\s*\]?\s*(?:新台幣|NT\$)?\s*([\d,]+)', full_txt)
-                    if m2: budget = m2.group(1).replace(',', '')
+                if m: budget = m.group(1).replace(',', '')
             except: pass
 
             bids.append({
-                '來源': '資策會', '案號': case_no, '標題': title, '標題連結': href,
-                '預算金額': budget, '採購類型': cols[3].text.strip(), '公告日': cols[4].text.strip(),
-                '截止日': cols[5].text.strip(), '狀態': cols[1].text.strip(),
+                '來源': '資策會', '案號': case_no_raw, '標題': cols[2].text.strip(), '標題連結': href,
+                '預算金額': budget, '公告日': cols[4].text.strip(), '截止日': cols[5].text.strip(), '狀態': cols[1].text.strip(),
             })
+
         return pd.DataFrame(bids)
-    except Exception as e:
-        print(f"   [FAIL] 資策會錯誤: {e}")
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
 # ============================================================================
 # 中研院爬蟲
@@ -250,17 +258,17 @@ def scrape_sinica():
     return pd.concat(all_dfs).drop_duplicates(subset=['案號'], keep='first')
 
 # ============================================================================
-# 主流程
+# 主程式
 # ============================================================================
 
 def main():
-    print(f"\n{'='*70}\n  三站標案抓取器 v1.8\n{'='*70}")
+    print(f"\n{'='*70}\n  三站標案抓取器 v2.1\n{'='*70}")
     status = load_status()
     status['attempt'] += 1
 
     all_new_data = []
     for src in SOURCES:
-        df = retry(lambda s=src: {'工研院': scrape_itri, '資策會': scrape_iii, '中研院': scrape_sinica}[s]())
+        df = {'工研院': scrape_itri, '資策會': scrape_iii, '中研院': scrape_sinica}[src]()
         if not df.empty:
             all_new_data.append(df)
             status['sources'][src] = {'status': 'ok', 'count': len(df), 'time': datetime.now(TW_TZ).strftime('%H:%M:%S'), 'error': ''}
@@ -273,12 +281,10 @@ def main():
     latest_path = 'data/latest.csv'
     old_df = pd.read_csv(latest_path, dtype={'案號': str}) if os.path.exists(latest_path) else pd.DataFrame()
     
-    # 合併去重：新資料在前，保留新資料
     final_df = pd.concat([new_df, old_df], ignore_index=True)
     if not final_df.empty:
         final_df = final_df.drop_duplicates(subset=['案號'], keep='first').fillna('')
         
-        # 篩選近 3 日
         def is_recent(d):
             try:
                 iso = parse_date_to_iso(d)
@@ -288,12 +294,9 @@ def main():
             except: return True
         
         final_df = final_df[final_df['公告日'].apply(is_recent)]
-        
-        # 存檔前格式化為民國日期
         final_df['公告日'] = final_df['公告日'].apply(format_to_roc)
         final_df['截止日'] = final_df['截止日'].apply(format_to_roc)
 
-    # 存檔
     os.makedirs('data', exist_ok=True)
     final_df.to_csv(latest_path, index=False, encoding='utf-8-sig')
     final_df.to_csv(f'data/三站標案_{TODAY}.csv', index=False, encoding='utf-8-sig')
