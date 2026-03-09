@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-三站標案抓取器 v2.6
+三站標案抓取器 v2.7
 ===================
-1. 資策會：強化列表頁日期提取，掃描整行以尋找符合 YYY/MM/DD 格式的日期。
-2. 資料合併優化：如果新舊資料都有案號，優先保留「日期欄位不為空」的那一筆。
+1. 修復主流程邏輯錯誤。
+2. 只有在真正異常時才顯示 Scraper Error。
+3. 無資料時顯示為綠色 OK (0 筆)。
 """
 
 import requests
@@ -79,51 +80,7 @@ def add_log(status, msg):
     print(f"[LOG {time_str}] {msg}")
 
 # ============================================================================
-# 資策會爬蟲 (v2.6 穩定提取日期)
-# ============================================================================
-
-def scrape_iii():
-    print("[GET] 抓取資策會...")
-    url = 'https://bid.iii.org.tw/bid/list/bid_new_list.aspx'
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        table = soup.find('table', id='GridView1')
-        if not table: return pd.DataFrame()
-        
-        rows = table.find_all('tr')[1:21] # 前 20 筆
-        bids = []
-        for row in rows:
-            cols = row.find_all('td')
-            if len(cols) < 4: continue
-            
-            case_no = cols[0].text.strip()
-            title = cols[2].text.strip()
-            link_tag = cols[2].find('a')
-            href_attr = link_tag.get('href', '') if link_tag else ''
-            href = f"https://bid.iii.org.tw/bid/list/{href_attr.lstrip('/')}" if 'bid_no=' in href_attr else f"https://bid.iii.org.tw/bid/list/bid_new_list.aspx?bid_no={case_no}"
-            
-            # 策略：掃描整行所有欄位，找出所有符合 YYY/MM/DD 格式的日期
-            found_dates = []
-            for td in cols:
-                txt = td.text.strip()
-                # 匹配 115/03/06 或 2026/03/06
-                m = re.search(r'(\d{2,4})/\d{1,2}/\d{1,2}', txt)
-                if m: found_dates.append(txt)
-            
-            # 通常第一個日期是公告日，第二個是截止日
-            pub_date = found_dates[0] if len(found_dates) > 0 else "-"
-            end_date = found_dates[1] if len(found_dates) > 1 else "-"
-            
-            bids.append({
-                '來源': '資策會', '案號': case_no, '標題': title, '標題連結': href,
-                '預算金額': '', '公告日': pub_date, '截止日': end_date, '狀態': cols[1].text.strip(),
-            })
-        return pd.DataFrame(bids)
-    except: return pd.DataFrame()
-
-# ============================================================================
-# 工研院爬蟲
+# 爬蟲各站實作
 # ============================================================================
 
 def scrape_itri():
@@ -153,11 +110,40 @@ def scrape_itri():
                 '公告日': info.get('LatestPublishdt', ''), '截止日': end_date, '狀態': info.get('BidDocStatus', ''),
             })
         return pd.DataFrame(bids)
-    except: return pd.DataFrame()
+    except Exception as e:
+        print(f"   [FAIL] 工研院錯誤: {e}"); raise e
 
-# ============================================================================
-# 中研院爬蟲
-# ============================================================================
+def scrape_iii():
+    print("[GET] 抓取資策會...")
+    url = 'https://bid.iii.org.tw/bid/list/bid_new_list.aspx'
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        table = soup.find('table', id='GridView1')
+        if not table: return pd.DataFrame()
+        rows = table.find_all('tr')[1:21]
+        bids = []
+        for row in rows:
+            cols = row.find_all('td')
+            if len(cols) < 4: continue
+            case_no = cols[0].text.strip()
+            title = cols[2].text.strip()
+            link_tag = cols[2].find('a')
+            href_attr = link_tag.get('href', '') if link_tag else ''
+            href = f"https://bid.iii.org.tw/bid/list/{href_attr.lstrip('/')}" if 'bid_no=' in href_attr else f"https://bid.iii.org.tw/bid/list/bid_new_list.aspx?bid_no={case_no}"
+            found_dates = []
+            for td in cols:
+                m = re.search(r'(\d{2,4})/\d{1,2}/\d{1,2}', td.text.strip())
+                if m: found_dates.append(td.text.strip())
+            pub_date = found_dates[0] if len(found_dates) > 0 else "-"
+            end_date = found_dates[1] if len(found_dates) > 1 else "-"
+            bids.append({
+                '來源': '資策會', '案號': case_no, '標題': title, '標題連結': href,
+                '預算金額': '', '公告日': pub_date, '截止日': end_date, '狀態': cols[1].text.strip(),
+            })
+        return pd.DataFrame(bids)
+    except Exception as e:
+        print(f"   [FAIL] 資策會錯誤: {e}"); raise e
 
 def scrape_sinica():
     print(f"[GET] 抓取中研院...")
@@ -190,7 +176,7 @@ def scrape_sinica():
                     elif '截止' in k: bid['截止日'] = v
                 bids.append(bid)
             if bids: all_dfs.append(pd.DataFrame(bids))
-        except: continue
+        except Exception as e: continue
     if not all_dfs: return pd.DataFrame()
     return pd.concat(all_dfs).drop_duplicates(subset=['案號'], keep='first')
 
@@ -199,31 +185,42 @@ def scrape_sinica():
 # ============================================================================
 
 def main():
-    print(f"\n{'='*70}\n  三站標案抓取器 v2.6\n{'='*70}")
+    print(f"\n{'='*70}\n  三站標案抓取器 v2.7\n{'='*70}")
     status = load_status(); status['attempt'] += 1
+    
     all_new_data = []
     for src in SOURCES:
-        df = {'工研院': scrape_itri, '資策會': scrape_iii, '中研院': scrape_sinica}[src]()
-        if not df.empty:
-            all_new_data.append(df)
-            status['sources'][src] = {'status': 'ok', 'count': len(df), 'time': datetime.now(TW_TZ).strftime('%H:%M:%S'), 'error': ''}
-            add_log(status, f"{src}：成功，{len(df)} 筆")
-        else: status['sources'][src]['status'] = 'fail'; add_log(status, f"{src}：無資料或失敗")
+        try:
+            scraper_func = {'工研院': scrape_itri, '資策會': scrape_iii, '中研院': scrape_sinica}[src]
+            df = scraper_func()
+            count = len(df) if not df.empty else 0
+            status['sources'][src] = {
+                'status': 'ok', 'count': count, 
+                'time': datetime.now(TW_TZ).strftime('%H:%M:%S'), 'error': ''
+            }
+            if count > 0:
+                all_new_data.append(df)
+                add_log(status, f"{src}：成功，{count} 筆")
+            else:
+                add_log(status, f"{src}：目前無新標案")
+        except Exception as e:
+            error_msg = str(e)[:100]
+            status['sources'][src] = {
+                'status': 'error', 'count': 0, 
+                'time': datetime.now(TW_TZ).strftime('%H:%M:%S'), 'error': error_msg
+            }
+            add_log(status, f"{src}：出錯 - {error_msg}")
 
     new_df = pd.concat(all_new_data) if all_new_data else pd.DataFrame()
     latest_path = 'data/latest.csv'
     old_df = pd.read_csv(latest_path, dtype={'案號': str}) if os.path.exists(latest_path) else pd.DataFrame()
     
-    # 【關鍵修正】合併策略：保留「公告日不為空」且「案號唯一」的標案
     final_df = pd.concat([new_df, old_df], ignore_index=True)
     if not final_df.empty:
-        # 先按案號分組，對於每一組，優先挑選有日期的那一筆
-        # 我們將 '-' 取代為 None 以便排序，然後排序並去重
-        final_df['tmp_date'] = final_df['公告日'].replace('-', None)
+        final_df['tmp_date'] = final_df['公告日'].replace('-', '0')
         final_df = final_df.sort_values(by=['案號', 'tmp_date'], ascending=[True, False])
         final_df = final_df.drop_duplicates(subset=['案號'], keep='first').drop(columns=['tmp_date']).fillna('')
         
-        # 篩選近 3 日
         def is_recent(d):
             try:
                 d_str = str(d).strip().replace('/', '-')
