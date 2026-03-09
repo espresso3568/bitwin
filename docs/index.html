@@ -45,7 +45,6 @@
 
         .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-        /* Header & Nav */
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
         .logo-group { display: flex; align-items: center; gap: 12px; }
         .logo-icon { width: 32px; height: 32px; background: var(--accent-blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
@@ -62,7 +61,6 @@
             display: flex; align-items: center; gap: 8px;
         }
 
-        /* Banner & Date Picker */
         .banner {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -82,7 +80,6 @@
             font-weight: 500;
         }
 
-        /* Calendar Dropdown */
         .dropdown { position: relative; }
         .calendar-dropdown {
             position: absolute; top: 100%; right: 0; margin-top: 8px;
@@ -96,12 +93,10 @@
         .calendar-dropdown.show { display: block; }
         .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 12px; }
-        .cal-day { padding: 8px; cursor: pointer; border-radius: 4px; }
-        .cal-day:hover { background: var(--bg-tertiary); }
-        .cal-day.active { background: var(--accent-blue); color: white; }
-        .cal-day.has-data { font-weight: 600; color: var(--accent-blue); text-decoration: underline; }
+        .cal-day { padding: 8px; border-radius: 4px; color: var(--text-secondary); opacity: 0.5; }
+        .cal-day.active { background: var(--accent-blue); color: white; opacity: 1; font-weight: bold; cursor: pointer; }
+        .cal-day.has-data { color: var(--accent-blue); opacity: 1; font-weight: bold; cursor: pointer; text-decoration: underline; }
 
-        /* Stats Cards */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
         .stat-card-link { text-decoration: none; color: inherit; display: block; transition: transform 0.2s ease; }
         .stat-card-link:hover { transform: translateY(-4px); }
@@ -111,55 +106,35 @@
             padding: 20px; border-radius: var(--radius-md);
             position: relative;
         }
-        .stat-card::after {
-            content: '↗'; position: absolute; top: 12px; right: 12px;
-            font-size: 12px; color: var(--text-secondary); opacity: 0; transition: opacity 0.2s;
-        }
+        .stat-card::after { content: '↗'; position: absolute; top: 12px; right: 12px; font-size: 12px; opacity: 0; transition: opacity 0.2s; }
         .stat-card-link:hover .stat-card::after { opacity: 1; }
-        
-        .stat-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .stat-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; }
         .stat-value { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
-        /* Table Style */
         .table-container { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
-        th { background: var(--bg-tertiary); padding: 12px 16px; font-weight: 600; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; }
+        th { background: var(--bg-tertiary); padding: 12px 16px; font-weight: 600; font-size: 12px; color: var(--text-secondary); }
         td { padding: 16px; border-bottom: 1px solid var(--border-color); }
         tr:last-child td { border-bottom: none; }
-        tr:hover td { background: rgba(255, 255, 255, 0.02); }
-        [data-theme="light"] tr:hover td { background: rgba(0, 0, 0, 0.01); }
 
-        .source-link { text-decoration: none; }
-        .source-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; transition: filter 0.2s; }
-        .source-link:hover .source-badge { filter: brightness(1.2); }
-        
+        .source-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
         .source-itri { background: rgba(47, 129, 247, 0.1); color: var(--accent-blue); }
         .source-iii { background: rgba(35, 134, 54, 0.1); color: var(--accent-green); }
         .source-sinica { background: rgba(210, 153, 34, 0.1); color: var(--accent-orange); }
 
-        .tender-title { font-weight: 500; color: var(--text-primary); text-decoration: none; display: block; margin-bottom: 4px; }
-        .tender-title:hover { color: var(--accent-blue); text-decoration: underline; }
-        .budget-text { font-family: 'JetBrains Mono', monospace; font-weight: 500; color: var(--accent-green); }
+        .tender-title { font-weight: 500; color: var(--text-primary); text-decoration: none; }
+        .tender-title:hover { text-decoration: underline; color: var(--accent-blue); }
+        .budget-text { font-family: 'JetBrains Mono', monospace; color: var(--accent-green); font-weight: 500; }
         .date-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary); }
 
         .status-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-        .status-active { background: rgba(35, 134, 54, 0.1); color: var(--accent-green); border: 1px solid rgba(35, 134, 54, 0.2); }
-        .status-closed { background: rgba(248, 81, 73, 0.1); color: var(--accent-red); border: 1px solid rgba(248, 81, 73, 0.2); }
-        .status-default { background: rgba(139, 148, 158, 0.1); color: var(--text-secondary); }
+        .status-active { background: rgba(35, 134, 54, 0.1); color: var(--accent-green); }
+        .status-closed { background: rgba(248, 81, 73, 0.1); color: var(--accent-red); }
 
-        /* Status Alert (Collapsible) */
         .status-alert { margin-bottom: 24px; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); display: none; }
         .status-alert.show { display: block; }
-        .status-alert-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .status-alert-title { font-weight: 600; font-size: 14px; }
-        .status-alert-body { margin-top: 12px; display: block; }
+        .status-alert-header { display: flex; justify-content: space-between; cursor: pointer; }
         .status-alert.collapsed .status-alert-body { display: none; }
-        .status-alert.alert-error { background: rgba(248, 81, 73, 0.05); color: var(--accent-red); border-color: rgba(248, 81, 73, 0.2); }
-
-        /* Skeleton Screen */
-        .skeleton { height: 16px; background: var(--bg-tertiary); border-radius: 4px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-
     </style>
 </head>
 <body data-theme="dark">
@@ -169,22 +144,17 @@
                 <div class="logo-icon">B</div>
                 <h1>Bid Dashboard</h1>
             </div>
-            <button class="theme-toggle" id="themeToggle">
-                <span id="themeIcon">☀️</span> Light Mode
-            </button>
+            <button class="theme-toggle" id="themeToggle">☀️ Light Mode</button>
         </header>
 
         <div class="status-alert alert-error collapsed" id="statusAlert">
-            <div class="status-alert-header" id="statusAlertHeader">
-                <div class="status-alert-title" id="statusAlertTitle">Scraper Error Detected</div>
-                <div>▼</div>
-            </div>
-            <div class="status-alert-body" id="statusAlertBody"></div>
+            <div class="status-alert-header" id="statusAlertHeader"><strong>Scraper Status</strong> <div>▼</div></div>
+            <div class="status-alert-body" id="statusAlertBody" style="margin-top:12px; font-size:13px;"></div>
         </div>
 
         <div class="banner">
             <div class="banner-info">
-                <span>Currently Viewing: <strong id="currentDateLabel">近三日資料</strong></span>
+                <span>Currently Viewing: <strong id="currentDateLabel">最新公告 (近三日)</strong></span>
                 <span id="updateTimeLabel" style="color: var(--text-secondary); font-size: 12px;"></span>
             </div>
             <div class="dropdown">
@@ -201,43 +171,21 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Tenders</div>
-                <div class="stat-value" id="statTotal">0</div>
-            </div>
+            <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" id="statTotal">0</div></div>
             <a href="https://vendor.itri.org.tw/broadBqry2.aspx" target="_blank" class="stat-card-link">
-                <div class="stat-card">
-                    <div class="stat-label">ITRI (工研院)</div>
-                    <div class="stat-value" id="statItri" style="color: var(--accent-blue)">0</div>
-                </div>
+                <div class="stat-card"><div class="stat-label">ITRI</div><div class="stat-value" id="statItri" style="color: var(--accent-blue)">0</div></div>
             </a>
             <a href="https://bid.iii.org.tw/bid/list/bid_new_list.aspx" target="_blank" class="stat-card-link">
-                <div class="stat-card">
-                    <div class="stat-label">III (資策會)</div>
-                    <div class="stat-value" id="statIii" style="color: var(--accent-green)">0</div>
-                </div>
+                <div class="stat-card"><div class="stat-label">III</div><div class="stat-value" id="statIii" style="color: var(--accent-green)">0</div></div>
             </a>
             <a href="https://srp.sinica.edu.tw/InviteBids" target="_blank" class="stat-card-link">
-                <div class="stat-card">
-                    <div class="stat-label">Sinica (中研院)</div>
-                    <div class="stat-value" id="statSinica" style="color: var(--accent-orange)">0</div>
-                </div>
+                <div class="stat-card"><div class="stat-label">Sinica</div><div class="stat-value" id="statSinica" style="color: var(--accent-orange)">0</div></div>
             </a>
         </div>
 
         <div class="table-container">
-            <table id="tenderTable">
-                <thead>
-                    <tr>
-                        <th width="100">來源</th>
-                        <th width="120">案號</th>
-                        <th>標案名稱</th>
-                        <th width="150">預算金額</th>
-                        <th width="110">公告日</th>
-                        <th width="110">截止日</th>
-                        <th width="100">狀態</th>
-                    </tr>
-                </thead>
+            <table>
+                <thead><tr><th>來源</th><th>案號</th><th>標案名稱</th><th>預算</th><th>公告日</th><th>截止日</th><th>狀態</th></tr></thead>
                 <tbody id="tenderBody">
                     <tr><td colspan="7" align="center" style="padding: 40px; color: var(--text-secondary);">Fetching tender data...</td></tr>
                 </tbody>
@@ -246,54 +194,29 @@
     </div>
 
     <script>
-        // State
         let currentData = [];
         let manifestDates = [];
-        const SOURCE_URLS = {
-            '工研院': 'https://vendor.itri.org.tw/broadBqry2.aspx',
-            '資策會': 'https://bid.iii.org.tw/bid/list/bid_new_list.aspx',
-            '中研院': 'https://srp.sinica.edu.tw/InviteBids'
-        };
+        const SOURCE_URLS = {'工研院': 'https://vendor.itri.org.tw/broadBqry2.aspx', '資策會': 'https://bid.iii.org.tw/bid/list/bid_new_list.aspx', '中研院': 'https://srp.sinica.edu.tw/InviteBids'};
 
-        // Theme Toggle
         document.getElementById('themeToggle').addEventListener('click', () => {
-            const body = document.body;
-            const isDark = body.getAttribute('data-theme') === 'dark';
-            body.setAttribute('data-theme', isDark ? 'light' : 'dark');
-            document.getElementById('themeIcon').innerText = isDark ? '🌙' : '☀️';
-            document.getElementById('themeToggle').innerHTML = isDark ? '<span>🌙</span> Dark Mode' : '<span>☀️</span> Light Mode';
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            document.getElementById('themeToggle').innerText = isDark ? '🌙 Dark Mode' : '☀️ Light Mode';
         });
 
-        // Date Helpers
-        function toROCDate(d) {
-            if (!d || d === '-') return '-';
-            return String(d).trim();
-        }
-
-        // Fetch Data
         async function loadDashboard(date = 'latest') {
             const tbody = document.getElementById('tenderBody');
             const file = date === 'latest' ? 'data.json' : `data_${date.replace(/-/g, '')}.json`;
-            
             try {
-                const response = await fetch(file);
-                if (!response.ok) throw new Error('Data not found');
-                const json = await response.json();
-                
+                const resp = await fetch(file);
+                const json = await resp.json();
                 currentData = json.data;
                 document.getElementById('updateTimeLabel').innerText = `更新於: ${json.update_time}`;
-                // 更新標題文字
-                const dateLabel = document.getElementById('currentDateLabel');
-                if (date === 'latest') {
-                    dateLabel.innerText = '最新公告 (近三日)';
-                } else {
-                    dateLabel.innerText = date;
-                }
-                
+                document.getElementById('currentDateLabel').innerText = (date === 'latest' ? '最新公告 (近三日)' : date);
                 renderStats(json);
                 renderTable(json.data);
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="7" align="center" style="padding: 40px; color: var(--accent-red);">無法載入資料 (${err.message})</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" align="center" style="padding: 40px; color: var(--accent-red);">無法載入資料</td></tr>`;
             }
         }
 
@@ -310,57 +233,25 @@
                 tbody.innerHTML = '<tr><td colspan="7" align="center" style="padding: 40px;">目前無符合條件的標案</td></tr>';
                 return;
             }
-
             tbody.innerHTML = data.map(row => {
-                try {
-                    const source = row['來源'] || '-';
-                    const sourceUrl = SOURCE_URLS[source] || '#';
-                    const badgeClass = source === '資策會' ? 'source-iii' : (source === '中研院' ? 'source-sinica' : 'source-itri');
-                    
-                    const title = row['標題'] || row['CName'] || row['採購案名稱'] || '無標題';
-                    const link = row['標題連結'] || '';
-                    const caseNo = row['案號'] || row['CNo'] || '-';
-                    
-                    const pubDate = toROCDate(row['公告日'] || row['公佈日'] || '');
-                    const endDate = toROCDate(row['截止日'] || row['投標日'] || '');
-
-                    const budgetRaw = row['預算金額'] || '';
-                    let budgetDisplay = '-';
-                    if (budgetRaw && !isNaN(parseFloat(budgetRaw))) {
-                        budgetDisplay = '$' + parseFloat(budgetRaw).toLocaleString();
-                    } else if (budgetRaw) {
-                        budgetDisplay = budgetRaw;
-                    }
-
-                    const status = row['狀態'] || '';
-                    let statusClass = 'status-default';
-                    if (status.includes('公告') || status === 'P' || status.includes('進行')) statusClass = 'status-active';
-                    if (status.includes('結案') || status.includes('流標')) statusClass = 'status-closed';
-
-                    return `
-                        <tr>
-                            <td>
-                                <a href="${sourceUrl}" target="_blank" class="source-link">
-                                    <span class="source-badge ${badgeClass}">${source}</span>
-                                </a>
-                            </td>
-                            <td><code style="font-size:11px; opacity:0.7">${caseNo}</code></td>
-                            <td>
-                                ${link ? `<a href="${link}" target="_blank" class="tender-title">${title}</a>` : `<span class="tender-title">${title}</span>`}
-                            </td>
-                            <td><span class="budget-text">${budgetDisplay}</span></td>
-                            <td><span class="date-text">${pubDate}</span></td>
-                            <td><span class="date-text">${endDate}</span></td>
-                            <td><span class="status-badge ${statusClass}">${status === 'P' ? '公告中' : status}</span></td>
-                        </tr>
-                    `;
-                } catch (e) {
-                    return '';
-                }
+                const source = row['來源'] || '-';
+                const badgeClass = source === '資策會' ? 'source-iii' : (source === '中研院' ? 'source-sinica' : 'source-itri');
+                const budget = (row['預算金額'] && !isNaN(row['預算金額'])) ? '$' + parseFloat(row['預算金額']).toLocaleString() : (row['預算金額'] || '-');
+                const status = row['狀態'] || '';
+                const sClass = (status.includes('公告') || status === 'P' || status.includes('進行')) ? 'status-active' : (status.includes('結案') ? 'status-closed' : '');
+                
+                return `<tr>
+                    <td><a href="${SOURCE_URLS[source] || '#'}" target="_blank" style="text-decoration:none"><span class="source-badge ${badgeClass}">${source}</span></a></td>
+                    <td><code style="font-size:11px; opacity:0.7">${row['案號'] || '-'}</code></td>
+                    <td><a href="${row['標題連結'] || '#'}" target="_blank" class="tender-title">${row['標題'] || '無標題'}</a></td>
+                    <td><span class="budget-text">${budget}</span></td>
+                    <td><span class="date-text">${row['公告日'] || '-'}</span></td>
+                    <td><span class="date-text">${row['截止日'] || '-'}</span></td>
+                    <td><span class="status-badge ${sClass}">${status === 'P' ? '公告中' : status}</span></td>
+                </tr>`;
             }).join('');
         }
 
-        // Calendar Logic (Simplified)
         let calMonth = new Date().getMonth();
         let calYear = new Date().getFullYear();
 
@@ -369,15 +260,14 @@
                 const resp = await fetch('dates.json');
                 const json = await resp.json();
                 manifestDates = json.dates;
-                
                 const sResp = await fetch('status.json');
                 const sJson = await sResp.json();
                 if (sJson.sources) {
-                    const fails = Object.entries(sJson.sources).filter(([k,v]) => v.status !== 'ok');
+                    const fails = Object.entries(sJson.sources).filter(([k,v]) => v.status === 'error');
                     if (fails.length > 0) {
                         const alert = document.getElementById('statusAlert');
                         alert.classList.add('show');
-                        document.getElementById('statusAlertBody').innerHTML = fails.map(([k,v]) => `<div><strong>${k}</strong>: ${v.error || 'Unavailable'}</div>`).join('');
+                        document.getElementById('statusAlertBody').innerHTML = fails.map(([k,v]) => `<div><strong>${k}</strong>: ${v.error}</div>`).join('');
                     }
                 }
             } catch (e) {}
@@ -385,55 +275,22 @@
 
         function renderCalendar() {
             const grid = document.getElementById('calGrid');
-            const monthLabel = document.getElementById('calMonthYear');
             grid.innerHTML = '';
-            
+            document.getElementById('calMonthYear').innerText = `${calYear} / ${calMonth + 1}`;
             const firstDay = new Date(calYear, calMonth, 1).getDay();
             const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-            monthLabel.innerText = calYear + ' / ' + (calMonth + 1);
+            const todayStr = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0') + '-' + String(new Date().getDate()).padStart(2,'0');
 
-            const now = new Date();
-            const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-
-            for(let i=0; i<firstDay; i++) {
-                const div = document.createElement('div');
-                grid.appendChild(div);
-            }
-
+            for(let i=0; i<firstDay; i++) grid.innerHTML += '<div></div>';
             for(let i=1; i<=daysInMonth; i++) {
-                const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(i).padStart(2,'0');
-                const hasData = manifestDates.includes(dateStr);
-                const isToday = dateStr === todayStr;
-                
+                const dStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const hasData = manifestDates.includes(dStr);
+                const isToday = dStr === todayStr;
                 const dayEl = document.createElement('div');
                 dayEl.className = 'cal-day' + (hasData ? ' has-data' : '') + (isToday ? ' active' : '');
                 dayEl.innerText = i;
-                
-                // 今天或是有資料的日期都可點選
                 if(hasData || isToday) {
-                    dayEl.style.cursor = 'pointer';
-                    dayEl.onclick = () => {
-                        loadDashboard(isToday ? 'latest' : dateStr);
-                        document.getElementById('calendarDropdown').classList.remove('show');
-                    };
-                }
-                grid.appendChild(dayEl);
-            }
-        } / ${calMonth + 1}`;
-
-            for(let i=0; i<firstDay; i++) grid.innerHTML += '<div></div>';
-
-            for(let i=1; i<=daysInMonth; i++) {
-                const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                const hasData = manifestDates.includes(dateStr);
-                const dayEl = document.createElement('div');
-                dayEl.className = `cal-day ${hasData ? 'has-data' : ''}`;
-                dayEl.innerText = i;
-                if(hasData) {
-                    dayEl.onclick = () => {
-                        loadDashboard(dateStr);
-                        document.getElementById('calendarDropdown').classList.remove('show');
-                    };
+                    dayEl.onclick = () => { loadDashboard(isToday ? 'latest' : dStr); document.getElementById('calendarDropdown').classList.remove('show'); };
                 }
                 grid.appendChild(dayEl);
             }
@@ -445,28 +302,10 @@
             dd.classList.toggle('show');
             if(dd.classList.contains('show')) renderCalendar();
         });
-
-        document.getElementById('calPrev').addEventListener('click', (e) => {
-            e.stopPropagation();
-            calMonth--; if(calMonth < 0) { calMonth=11; calYear--; }
-            renderCalendar();
-        });
-
-        document.getElementById('calNext').addEventListener('click', (e) => {
-            e.stopPropagation();
-            calMonth++; if(calMonth > 11) { calMonth=0; calYear++; }
-            renderCalendar();
-        });
-
-        document.getElementById('statusAlertHeader').addEventListener('click', () => {
-            document.getElementById('statusAlert').classList.toggle('collapsed');
-        });
-
-        document.addEventListener('click', (e) => {
-            if(!document.getElementById('calendarDropdown').contains(e.target) && e.target.id !== 'dateBtn') {
-                document.getElementById('calendarDropdown').classList.remove('show');
-            }
-        });
+        document.getElementById('calPrev').addEventListener('click', (e) => { e.stopPropagation(); calMonth--; if(calMonth<0){calMonth=11; calYear--;} renderCalendar(); });
+        document.getElementById('calNext').addEventListener('click', (e) => { e.stopPropagation(); calMonth++; if(calMonth>11){calMonth=0; calYear++;} renderCalendar(); });
+        document.getElementById('statusAlertHeader').addEventListener('click', () => document.getElementById('statusAlert').classList.toggle('collapsed'));
+        document.addEventListener('click', (e) => { if(!document.getElementById('calendarDropdown').contains(e.target) && e.target.id !== 'dateBtn') document.getElementById('calendarDropdown').classList.remove('show'); });
 
         initCalendar();
         loadDashboard();
