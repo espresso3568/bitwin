@@ -282,7 +282,13 @@
                 
                 currentData = json.data;
                 document.getElementById('updateTimeLabel').innerText = `更新於: ${json.update_time}`;
-                document.getElementById('currentDateLabel').innerText = date === 'latest' ? '近三日資料' : date;
+                // 更新標題文字
+                const dateLabel = document.getElementById('currentDateLabel');
+                if (date === 'latest') {
+                    dateLabel.innerText = '最新公告 (近三日)';
+                } else {
+                    dateLabel.innerText = date;
+                }
                 
                 renderStats(json);
                 renderTable(json.data);
@@ -384,7 +390,36 @@
             
             const firstDay = new Date(calYear, calMonth, 1).getDay();
             const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-            monthLabel.innerText = `${calYear} / ${calMonth + 1}`;
+            monthLabel.innerText = calYear + ' / ' + (calMonth + 1);
+
+            const now = new Date();
+            const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+            for(let i=0; i<firstDay; i++) {
+                const div = document.createElement('div');
+                grid.appendChild(div);
+            }
+
+            for(let i=1; i<=daysInMonth; i++) {
+                const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(i).padStart(2,'0');
+                const hasData = manifestDates.includes(dateStr);
+                const isToday = dateStr === todayStr;
+                
+                const dayEl = document.createElement('div');
+                dayEl.className = 'cal-day' + (hasData ? ' has-data' : '') + (isToday ? ' active' : '');
+                dayEl.innerText = i;
+                
+                // 今天或是有資料的日期都可點選
+                if(hasData || isToday) {
+                    dayEl.style.cursor = 'pointer';
+                    dayEl.onclick = () => {
+                        loadDashboard(isToday ? 'latest' : dateStr);
+                        document.getElementById('calendarDropdown').classList.remove('show');
+                    };
+                }
+                grid.appendChild(dayEl);
+            }
+        } / ${calMonth + 1}`;
 
             for(let i=0; i<firstDay; i++) grid.innerHTML += '<div></div>';
 
