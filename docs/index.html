@@ -103,11 +103,20 @@
 
         /* Stats Cards */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .stat-card-link { text-decoration: none; color: inherit; display: block; transition: transform 0.2s ease; }
+        .stat-card-link:hover { transform: translateY(-4px); }
         .stat-card {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
             padding: 20px; border-radius: var(--radius-md);
+            position: relative;
         }
+        .stat-card::after {
+            content: '↗'; position: absolute; top: 12px; right: 12px;
+            font-size: 12px; color: var(--text-secondary); opacity: 0; transition: opacity 0.2s;
+        }
+        .stat-card-link:hover .stat-card::after { opacity: 1; }
+        
         .stat-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
         .stat-value { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
@@ -120,7 +129,10 @@
         tr:hover td { background: rgba(255, 255, 255, 0.02); }
         [data-theme="light"] tr:hover td { background: rgba(0, 0, 0, 0.01); }
 
-        .source-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .source-link { text-decoration: none; }
+        .source-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; transition: filter 0.2s; }
+        .source-link:hover .source-badge { filter: brightness(1.2); }
+        
         .source-itri { background: rgba(47, 129, 247, 0.1); color: var(--accent-blue); }
         .source-iii { background: rgba(35, 134, 54, 0.1); color: var(--accent-green); }
         .source-sinica { background: rgba(210, 153, 34, 0.1); color: var(--accent-orange); }
@@ -193,18 +205,24 @@
                 <div class="stat-label">Total Tenders</div>
                 <div class="stat-value" id="statTotal">0</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">ITRI (工研院)</div>
-                <div class="stat-value" id="statItri" style="color: var(--accent-blue)">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">III (資策會)</div>
-                <div class="stat-value" id="statIii" style="color: var(--accent-green)">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Sinica (中研院)</div>
-                <div class="stat-value" id="statSinica" style="color: var(--accent-orange)">0</div>
-            </div>
+            <a href="https://vendor.itri.org.tw/broadBqry2.aspx" target="_blank" class="stat-card-link">
+                <div class="stat-card">
+                    <div class="stat-label">ITRI (工研院)</div>
+                    <div class="stat-value" id="statItri" style="color: var(--accent-blue)">0</div>
+                </div>
+            </a>
+            <a href="https://bid.iii.org.tw/bid/list/bid_new_list.aspx" target="_blank" class="stat-card-link">
+                <div class="stat-card">
+                    <div class="stat-label">III (資策會)</div>
+                    <div class="stat-value" id="statIii" style="color: var(--accent-green)">0</div>
+                </div>
+            </a>
+            <a href="https://srp.sinica.edu.tw/InviteBids" target="_blank" class="stat-card-link">
+                <div class="stat-card">
+                    <div class="stat-label">Sinica (中研院)</div>
+                    <div class="stat-value" id="statSinica" style="color: var(--accent-orange)">0</div>
+                </div>
+            </a>
         </div>
 
         <div class="table-container">
@@ -231,9 +249,11 @@
         // State
         let currentData = [];
         let manifestDates = [];
-        let viewDate = 'latest'; // 'latest' or 'YYYY-MM-DD'
-        let calMonth = new Date().getMonth();
-        let calYear = new Date().getFullYear();
+        const SOURCE_URLS = {
+            '工研院': 'https://vendor.itri.org.tw/broadBqry2.aspx',
+            '資策會': 'https://bid.iii.org.tw/bid/list/bid_new_list.aspx',
+            '中研院': 'https://srp.sinica.edu.tw/InviteBids'
+        };
 
         // Theme Toggle
         document.getElementById('themeToggle').addEventListener('click', () => {
@@ -288,16 +308,17 @@
             tbody.innerHTML = data.map(row => {
                 try {
                     const source = row['來源'] || '-';
+                    const sourceUrl = SOURCE_URLS[source] || '#';
                     const badgeClass = source === '資策會' ? 'source-iii' : (source === '中研院' ? 'source-sinica' : 'source-itri');
                     
                     const title = row['標題'] || row['CName'] || row['採購案名稱'] || '無標題';
                     const link = row['標題連結'] || '';
                     const caseNo = row['案號'] || row['CNo'] || '-';
                     
-                    const pubDate = toROCDate(row['公告日'] || row['公佈日'] || row['LatestPublishdt'] || '');
-                    const endDate = toROCDate(row['截止日'] || row['投標日'] || row['EndDate'] || '');
+                    const pubDate = toROCDate(row['公告日'] || row['公佈日'] || '');
+                    const endDate = toROCDate(row['截止日'] || row['投標日'] || '');
 
-                    const budgetRaw = row['預算金額'] || row['Budget'] || '';
+                    const budgetRaw = row['預算金額'] || '';
                     let budgetDisplay = '-';
                     if (budgetRaw && !isNaN(parseFloat(budgetRaw))) {
                         budgetDisplay = '$' + parseFloat(budgetRaw).toLocaleString();
@@ -305,14 +326,18 @@
                         budgetDisplay = budgetRaw;
                     }
 
-                    const status = row['狀態'] || row['BidDocStatus'] || '';
+                    const status = row['狀態'] || '';
                     let statusClass = 'status-default';
                     if (status.includes('公告') || status === 'P' || status.includes('進行')) statusClass = 'status-active';
                     if (status.includes('結案') || status.includes('流標')) statusClass = 'status-closed';
 
                     return `
                         <tr>
-                            <td><span class="source-badge ${badgeClass}">${source}</span></td>
+                            <td>
+                                <a href="${sourceUrl}" target="_blank" class="source-link">
+                                    <span class="source-badge ${badgeClass}">${source}</span>
+                                </a>
+                            </td>
                             <td><code style="font-size:11px; opacity:0.7">${caseNo}</code></td>
                             <td>
                                 ${link ? `<a href="${link}" target="_blank" class="tender-title">${title}</a>` : `<span class="tender-title">${title}</span>`}
@@ -329,14 +354,16 @@
             }).join('');
         }
 
-        // Calendar Logic
+        // Calendar Logic (Simplified)
+        let calMonth = new Date().getMonth();
+        let calYear = new Date().getFullYear();
+
         async function initCalendar() {
             try {
                 const resp = await fetch('dates.json');
                 const json = await resp.json();
                 manifestDates = json.dates;
                 
-                // Load status for scraping issues
                 const sResp = await fetch('status.json');
                 const sJson = await sResp.json();
                 if (sJson.sources) {
@@ -344,7 +371,7 @@
                     if (fails.length > 0) {
                         const alert = document.getElementById('statusAlert');
                         alert.classList.add('show');
-                        document.getElementById('statusAlertBody').innerHTML = fails.map(([k,v]) => `<div><strong>${k}</strong>: ${v.error || 'Unavailable'} (Attempt ${sJson.attempt})</div>`).join('');
+                        document.getElementById('statusAlertBody').innerHTML = fails.map(([k,v]) => `<div><strong>${k}</strong>: ${v.error || 'Unavailable'}</div>`).join('');
                     }
                 }
             } catch (e) {}
@@ -359,7 +386,6 @@
             const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
             monthLabel.innerText = `${calYear} / ${calMonth + 1}`;
 
-            // Padding
             for(let i=0; i<firstDay; i++) grid.innerHTML += '<div></div>';
 
             for(let i=1; i<=daysInMonth; i++) {
@@ -378,7 +404,6 @@
             }
         }
 
-        // UI Events
         document.getElementById('dateBtn').addEventListener('click', (e) => {
             e.stopPropagation();
             const dd = document.getElementById('calendarDropdown');
@@ -408,7 +433,6 @@
             }
         });
 
-        // Init
         initCalendar();
         loadDashboard();
     </script>
