@@ -1,0 +1,70 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "BitWin Tender API",
+    "description": "提供三站標案自動抓取系統的即時資料查詢",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://espresso3568.github.io/bitwin",
+      "description": "GitHub Pages 靜態資料來源"
+    }
+  ],
+  "paths": {
+    "/data.json": {
+      "get": {
+        "summary": "獲取所有標案資料",
+        "description": "回傳包含 update_time, total 以及標案清單 (data 陣列) 的完整資料。",
+        "responses": {
+          "200": {
+            "description": "成功獲取 JSON 資料",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenderData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status.json": {
+      "get": {
+        "summary": "獲取系統狀態",
+        "description": "查看系統最後更新時間與各站點抓取筆數。",
+        "responses": {
+          "200": {
+            "description": "成功獲取狀態"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TenderData": {
+        "type": "object",
+        "properties": {
+          "update_time": { "type": "string" },
+          "total": { "type": "integer" },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "來源": { "type": "string" },
+                "案號": { "type": "string" },
+                "標題": { "type": "string" },
+                "標題連結": { "type": "string" },
+                "截止日": { "type": "string" },
+                "預算金額": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
