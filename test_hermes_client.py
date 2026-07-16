@@ -163,3 +163,22 @@ def test_get_stats(mock_get, sample_data):
     assert stats["update_time"] == "2026-07-16 08:00:00"
     assert stats["total"] == 3
     assert stats["sources"]["工研院"] == 2
+
+
+@patch("hermes_client.requests.get")
+def test_to_markdown(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    md = client.to_markdown(client.list_tenders(2))
+    assert "AI 晶片採購" in md
+    assert "A001" in md
+    assert "工研院" in md
+
+
+def test_to_markdown_empty_list():
+    client = BitWinClient()
+    md = client.to_markdown([])
+    assert "無符合條件的標案" in md

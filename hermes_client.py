@@ -101,6 +101,30 @@ class BitWinClient:
             "sources": data.get("sources", {}),
         }
 
+    def to_markdown(self, tenders: list[dict[str, Any]]) -> str:
+        """將標案列表格式化成 AI 易讀的 Markdown 文字。"""
+        if not tenders:
+            return "📭 無符合條件的標案。"
+
+        lines = ["📋 **標案列表**", ""]
+        for t in tenders:
+            title = t.get("標題", "無標題")
+            source = t.get("來源", "未知")
+            case_no = t.get("案號", "-")
+            pub_date = t.get("公告日", "-")
+            end_date = t.get("截止日", t.get("投標日", "-"))
+            link = t.get("標題連結", "")
+
+            lines.append(f"- **[{source}]** {title}")
+            lines.append(
+                f"  - 案號: `{case_no}` | 公告日: {pub_date} | 截止日: {end_date}"
+            )
+            if link:
+                lines.append(f"  - 連結: {link}")
+            lines.append("")
+
+        return "\n".join(lines)
+
     @staticmethod
     def _parse_date(date_str: str) -> datetime.datetime | None:
         """嘗試解析常見日期格式。"""
