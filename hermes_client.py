@@ -104,9 +104,9 @@ class BitWinClient:
     def to_markdown(self, tenders: list[dict[str, Any]]) -> str:
         """將標案列表格式化成 AI 易讀的 Markdown 文字。"""
         if not tenders:
-            return "📭 無符合條件的標案。"
+            return "無符合條件的標案。"
 
-        lines = ["📋 **標案列表**", ""]
+        lines = ["**標案列表**", ""]
         for t in tenders:
             title = t.get("標題", "無標題")
             source = t.get("來源", "未知")
