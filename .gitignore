@@ -21,3 +21,9 @@ Thumbs.db
 # 測試檔案
 test.py
 debug.py
+
+# Worktrees
+.worktrees/
+
+# Superpowers scratch files
+.superpowers/
