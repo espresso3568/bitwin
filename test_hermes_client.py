@@ -43,7 +43,9 @@ def test_fetch_data_success(mock_get):
 
 @patch("hermes_client.requests.get")
 def test_fetch_data_raises_api_error_on_network_failure(mock_get):
-    mock_get.side_effect = Exception("connection timeout")
+    import requests
+
+    mock_get.side_effect = requests.RequestException("connection timeout")
 
     client = BitWinClient()
     with pytest.raises(BitWinAPIError) as exc_info:
@@ -104,6 +106,17 @@ def test_list_tenders(mock_get, sample_data):
 
 
 @patch("hermes_client.requests.get")
+def test_list_tenders_rejects_negative_limit(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    with pytest.raises(ValueError, match="limit must be non-negative"):
+        client.list_tenders(limit=-1)
+
+
+@patch("hermes_client.requests.get")
 def test_search(mock_get, sample_data):
     mock_get.return_value.json.return_value = sample_data
     mock_get.return_value.raise_for_status.return_value = None
@@ -113,6 +126,18 @@ def test_search(mock_get, sample_data):
     results = client.search("AI")
     assert len(results) == 2
     assert all("AI" in (t["標題"] + t.get("案號", "")) for t in results)
+
+
+@patch("hermes_client.requests.get")
+def test_search_includes_source(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    results = client.search("資策會")
+    assert len(results) == 1
+    assert results[0]["來源"] == "資策會"
 
 
 @patch("hermes_client.requests.get")
@@ -197,6 +222,7 @@ def test_methods_return_empty_when_no_data(mock_get):
     assert client.get_by_case_no("A001") is None
     stats = client.get_stats()
     assert stats["total"] == 0
+    assert stats["sources"] == {}
 
 
 @patch("hermes_client.requests.get")

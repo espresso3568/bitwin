@@ -28,7 +28,7 @@ class BitWinClient:
         try:
             response = requests.get(self.data_url, timeout=30)
             response.raise_for_status()
-        except Exception as exc:
+        except requests.RequestException as exc:
             raise BitWinAPIError(f"無法取得標案資料: {exc}") from exc
 
         try:
@@ -43,7 +43,8 @@ class BitWinClient:
         """確保資料已載入；若未載入則自動 fetch。"""
         if self._data is None:
             self.fetch_data()
-        return self._data  # type: ignore[return-value]
+        assert self._data is not None
+        return self._data
 
     def list_tenders(self, limit: int | None = None) -> list[dict[str, Any]]:
         """列出所有或前 N 筆標案。"""
@@ -51,6 +52,8 @@ class BitWinClient:
         tenders = data.get("data", [])
         if limit is None:
             return tenders
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
         return tenders[:limit]
 
     def search(self, keyword: str) -> list[dict[str, Any]]:
@@ -62,6 +65,7 @@ class BitWinClient:
             for t in data.get("data", [])
             if keyword_lower in str(t.get("標題", "")).lower()
             or keyword_lower in str(t.get("案號", "")).lower()
+            or keyword_lower in str(t.get("來源", "")).lower()
         ]
 
     def filter_by_source(self, source: str) -> list[dict[str, Any]]:
@@ -74,9 +78,10 @@ class BitWinClient:
     ) -> list[dict[str, Any]]:
         """依公告日篩選最近 N 天內的標案。"""
         data = self._ensure_data()
-        cutoff = (reference_date or datetime.datetime.now()) - datetime.timedelta(
-            days=days
+        reference_date = reference_date or datetime.datetime.now().replace(
+            hour=23, minute=59, second=59, microsecond=0
         )
+        cutoff = reference_date - datetime.timedelta(days=days)
         results = []
         for t in data.get("data", []):
             pub_date = self._parse_date(str(t.get("公告日", "")))
