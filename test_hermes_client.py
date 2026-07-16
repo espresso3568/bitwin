@@ -134,7 +134,8 @@ def test_filter_by_days(mock_get, sample_data):
 
     client = BitWinClient()
     client.fetch_data()
-    results = client.filter_by_days(2)
+    reference_date = datetime.datetime(2026, 7, 16, 23, 59, 59)
+    results = client.filter_by_days(2, reference_date=reference_date)
     assert len(results) == 2
 
 

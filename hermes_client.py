@@ -69,10 +69,14 @@ class BitWinClient:
         data = self._ensure_data()
         return [t for t in data.get("data", []) if t.get("來源") == source]
 
-    def filter_by_days(self, days: int) -> list[dict[str, Any]]:
+    def filter_by_days(
+        self, days: int, reference_date: datetime.datetime | None = None
+    ) -> list[dict[str, Any]]:
         """依公告日篩選最近 N 天內的標案。"""
         data = self._ensure_data()
-        cutoff = datetime.datetime.now() - datetime.timedelta(days=days)
+        cutoff = (reference_date or datetime.datetime.now()) - datetime.timedelta(
+            days=days
+        )
         results = []
         for t in data.get("data", []):
             pub_date = self._parse_date(str(t.get("公告日", "")))
