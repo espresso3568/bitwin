@@ -31,8 +31,9 @@ class BitWinClient:
             raise BitWinAPIError(f"無法取得標案資料: {exc}") from exc
 
         try:
-            self._data = response.json()
+            data: dict[str, Any] = response.json()
         except json.JSONDecodeError as exc:
             raise BitWinDataError(f"無法解析標案資料: {exc}") from exc
 
-        return self._data
+        self._data = data
+        return data
