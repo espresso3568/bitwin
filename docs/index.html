@@ -260,6 +260,11 @@
                 const resp = await fetch('dates.json');
                 const json = await resp.json();
                 manifestDates = json.dates;
+                if (manifestDates.length > 0) {
+                    const latest = new Date(manifestDates[0]);
+                    calMonth = latest.getMonth();
+                    calYear = latest.getFullYear();
+                }
                 const sResp = await fetch('status.json');
                 const sJson = await sResp.json();
                 if (sJson.sources) {
