@@ -1,3 +1,4 @@
+import datetime
 import json
 from typing import Any
 
@@ -37,3 +38,72 @@ class BitWinClient:
 
         self._data = data
         return data
+
+    def _ensure_data(self) -> dict[str, Any]:
+        """確保資料已載入；若未載入則自動 fetch。"""
+        if self._data is None:
+            self.fetch_data()
+        return self._data  # type: ignore[return-value]
+
+    def list_tenders(self, limit: int | None = None) -> list[dict[str, Any]]:
+        """列出所有或前 N 筆標案。"""
+        data = self._ensure_data()
+        tenders = data.get("data", [])
+        if limit is None:
+            return tenders
+        return tenders[:limit]
+
+    def search(self, keyword: str) -> list[dict[str, Any]]:
+        """搜尋標題或案號包含關鍵字的標案。"""
+        data = self._ensure_data()
+        keyword_lower = keyword.lower()
+        return [
+            t
+            for t in data.get("data", [])
+            if keyword_lower in str(t.get("標題", "")).lower()
+            or keyword_lower in str(t.get("案號", "")).lower()
+        ]
+
+    def filter_by_source(self, source: str) -> list[dict[str, Any]]:
+        """依來源機構篩選標案。"""
+        data = self._ensure_data()
+        return [t for t in data.get("data", []) if t.get("來源") == source]
+
+    def filter_by_days(self, days: int) -> list[dict[str, Any]]:
+        """依公告日篩選最近 N 天內的標案。"""
+        data = self._ensure_data()
+        cutoff = datetime.datetime.now() - datetime.timedelta(days=days)
+        results = []
+        for t in data.get("data", []):
+            pub_date = self._parse_date(str(t.get("公告日", "")))
+            if pub_date and pub_date >= cutoff:
+                results.append(t)
+        return results
+
+    def get_by_case_no(self, case_no: str) -> dict[str, Any] | None:
+        """以案號取得單一標案詳情。"""
+        data = self._ensure_data()
+        for t in data.get("data", []):
+            if t.get("案號") == case_no:
+                return t
+        return None
+
+    def get_stats(self) -> dict[str, Any]:
+        """取得更新時間、總數與各站統計。"""
+        data = self._ensure_data()
+        return {
+            "update_time": data.get("update_time", "未知"),
+            "total": data.get("total", 0),
+            "sources": data.get("sources", {}),
+        }
+
+    @staticmethod
+    def _parse_date(date_str: str) -> datetime.datetime | None:
+        """嘗試解析常見日期格式。"""
+        formats = ["%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"]
+        for fmt in formats:
+            try:
+                return datetime.datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+        return None

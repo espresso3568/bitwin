@@ -1,3 +1,4 @@
+import datetime
 import json
 from unittest.mock import patch, Mock
 import pytest
@@ -60,3 +61,104 @@ def test_fetch_data_raises_data_error_on_invalid_json(mock_get):
     client = BitWinClient()
     with pytest.raises(BitWinDataError):
         client.fetch_data()
+
+
+@pytest.fixture
+def sample_data():
+    return {
+        "update_time": "2026-07-16 08:00:00",
+        "total": 3,
+        "sources": {"工研院": 2, "資策會": 1},
+        "data": [
+            {
+                "來源": "工研院",
+                "案號": "A001",
+                "標題": "AI 晶片採購",
+                "公告日": "2026-07-16",
+            },
+            {
+                "來源": "工研院",
+                "案號": "A002",
+                "標題": "伺服器維護",
+                "公告日": "2026-07-15",
+            },
+            {
+                "來源": "資策會",
+                "案號": "B001",
+                "標題": "AI 教育訓練",
+                "公告日": "2026-07-14",
+            },
+        ],
+    }
+
+
+@patch("hermes_client.requests.get")
+def test_list_tenders(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    assert len(client.list_tenders()) == 3
+    assert len(client.list_tenders(limit=2)) == 2
+
+
+@patch("hermes_client.requests.get")
+def test_search(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    results = client.search("AI")
+    assert len(results) == 2
+    assert all("AI" in (t["標題"] + t.get("案號", "")) for t in results)
+
+
+@patch("hermes_client.requests.get")
+def test_filter_by_source(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    results = client.filter_by_source("工研院")
+    assert len(results) == 2
+    assert all(t["來源"] == "工研院" for t in results)
+
+
+@patch("hermes_client.requests.get")
+def test_filter_by_days(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    results = client.filter_by_days(2)
+    assert len(results) == 2
+
+
+@patch("hermes_client.requests.get")
+def test_get_by_case_no(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    tender = client.get_by_case_no("A001")
+    assert tender is not None
+    assert tender["案號"] == "A001"
+    assert client.get_by_case_no("NOT_EXIST") is None
+
+
+@patch("hermes_client.requests.get")
+def test_get_stats(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    stats = client.get_stats()
+    assert stats["update_time"] == "2026-07-16 08:00:00"
+    assert stats["total"] == 3
+    assert stats["sources"]["工研院"] == 2
