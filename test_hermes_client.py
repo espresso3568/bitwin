@@ -182,3 +182,29 @@ def test_to_markdown_empty_list():
     client = BitWinClient()
     md = client.to_markdown([])
     assert "無符合條件的標案" in md
+
+
+@patch("hermes_client.requests.get")
+def test_methods_return_empty_when_no_data(mock_get):
+    mock_get.return_value.json.return_value = {"data": []}
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    assert client.list_tenders() == []
+    assert client.search("AI") == []
+    assert client.filter_by_source("工研院") == []
+    assert client.get_by_case_no("A001") is None
+    stats = client.get_stats()
+    assert stats["total"] == 0
+
+
+@patch("hermes_client.requests.get")
+def test_search_is_case_insensitive(mock_get, sample_data):
+    mock_get.return_value.json.return_value = sample_data
+    mock_get.return_value.raise_for_status.return_value = None
+
+    client = BitWinClient()
+    client.fetch_data()
+    assert len(client.search("ai")) == 2
+    assert len(client.search("A001")) == 1
